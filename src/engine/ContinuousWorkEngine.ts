@@ -1,5 +1,5 @@
 import { TaskCoordinator } from '../coordinator/TaskCoordinator.js';
-import type { TaskContext } from 'nezha';
+import type { TaskContext } from '../planner/TaskPlanner.js';
 import { Pool } from 'pg';
 
 export interface EngineConfig {

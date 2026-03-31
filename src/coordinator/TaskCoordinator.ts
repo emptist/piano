@@ -1,4 +1,5 @@
-import { TaskRouter, type ExecutorType, type TaskContext } from 'nezha';
+import { TaskRouter, type ExecutorType } from '../router/TaskRouter.js';
+import type { TaskContext } from '../planner/TaskPlanner.js';
 import { PiExecutorWrapper } from '../executor/PiExecutorWrapper.js';
 
 export interface CoordinatorConfig {

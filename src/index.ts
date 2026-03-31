@@ -1,6 +1,9 @@
 // Piano - OpenCode/Pi extension for Nezha
-// Re-exports from nezha core
-export { TaskRouter, TaskPlanner, type ExecutorType, type TaskRouterConfig, type PlannedTask, type SubTask, type TaskContext } from 'nezha';
+// Local exports (moved from nezha core)
+export { TaskRouter } from './router/TaskRouter.js';
+export type { ExecutorType, TaskRouterConfig } from './router/TaskRouter.js';
+export { TaskPlanner } from './planner/TaskPlanner.js';
+export type { PlannedTask, SubTask, TaskContext } from './planner/TaskPlanner.js';
 
 // Piano-specific exports
 export { TaskCoordinator } from './coordinator/TaskCoordinator.js';
