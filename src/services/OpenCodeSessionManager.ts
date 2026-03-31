@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { logger } from 'nezha';
+import { logger } from '@emptist/nezha';
 
 export interface OpenCodeClientConfig {
   opencodeUrl: string;

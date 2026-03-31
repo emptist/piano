@@ -9,7 +9,7 @@
  * - 可以替换为其他 AI 集成（Trae、Cursor 等）
  * - 参考：docs/INTEGRATION_ARCHITECTURE.md
  */
-import { DatabaseClient, logger, ReminderTemplateService, type SystemStatus } from 'nezha';
+import { DatabaseClient, logger, ReminderTemplateService, type SystemStatus } from '@emptist/nezha';
 import { OPENCODE_API } from '../config/constants.js';
 
 export interface OpenCodeReminderConfig {

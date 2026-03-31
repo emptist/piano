@@ -1,5 +1,5 @@
-import { PiExecutor } from 'nupi';
-import type { PiExecutorResult as PiTaskResult } from 'nupi';
+import { PiExecutor } from '@emptist/nupi';
+import type { PiExecutorResult as PiTaskResult } from '@emptist/nupi';
 
 export interface PiExecutorConfig {
   model?: string;

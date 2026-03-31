@@ -1,10 +1,13 @@
 {
-  "name": "piano",
+  "name": "@emptist/piano",
   "version": "0.1.0",
   "description": "Piano - AI-driven autonomous development system extension with continuous work engine",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/index.ts",
@@ -16,8 +19,8 @@
     "start:daemon": "node dist/daemon/index.js"
   },
   "dependencies": {
-    "nezha": "file:../nezha",
-    "nupi": "file:../nupi",
+    "@emptist/nezha": "^0.1.0",
+    "@emptist/nupi": "^0.1.0",
     "@mariozechner/pi-coding-agent": "^0.63.0",
     "axios": "^1.13.6",
     "dotenv": "^17.3.1",
