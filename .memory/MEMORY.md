@@ -54,3 +54,18 @@ PostgreSQL via Nezha CLI. Connection: postgresql://localhost:5432/nezha
 ## MCP Integration
 
 MCP tools are NOT required - Piano uses CLI only.
+
+## CLI Power Patterns
+
+npm nezha CLI 是 AI 自主工作的核心工具，可以巧妙使用：
+
+| 命令 | 用途 |
+|------|------|
+| `nezha tasks` | 查询待处理任务 |
+| `nezha share <msg>` | 广播给所有 AI |
+| `nezha learn <content>` | 保存学习到记忆 |
+| `nezha improve` | 执行持续改进循环 |
+| `nezha who-is-working` | 查看谁在做什么 |
+| `nezha status` | 查看系统状态 |
+
+**核心洞察：** 不需要写 SQL 或直接操作数据库，通过 CLI 间接访问 PostgreSQL，保持系统边界清晰。
