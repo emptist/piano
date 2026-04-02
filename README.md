@@ -172,3 +172,83 @@ piano.start();
 | `opencodeAuth` | object  | OpenCode 认证 { username, password } |
 | `useOpenCode`  | boolean | 是否启用 OpenCode                    |
 | `enablePi`     | boolean | 是否启用 Pi 执行器                   |
+
+### 使用示例
+
+#### 1. 任务路由示例
+
+```typescript
+import { TaskRouter } from "@nezha/piano";
+
+const router = new TaskRouter({
+  useOpenCode: true,
+  usePi: true,
+  complexityThreshold: 5,
+  selfCapability: "pi",
+});
+
+// 简单任务 → internal AI
+const simple = router.route("修复拼写错误", "修复 README 中的拼写错误");
+// 结果: 'internal'
+
+// 中等复杂度 → OpenCode
+const medium = router.route("重构代码", "重构 UserService 使用新架构");
+// 结果: 'opencode'
+
+// 复杂任务 → Pi
+const complex = router.route("实现新功能", "实现完整的用户认证系统");
+// 结果: 'pi'
+```
+
+#### 2. 任务协调示例
+
+```typescript
+import { TaskCoordinator } from "@nezha/piano";
+
+const coordinator = new TaskCoordinator({
+  opencodeUrl: "http://localhost:4097",
+  usePi: true,
+});
+
+// 执行任务
+const result = await coordinator.execute({
+  id: "task-123",
+  title: "重构代码",
+  description: "重构 auth 模块",
+  priority: 5,
+});
+```
+
+#### 3. 任务规划示例
+
+```typescript
+import { TaskPlanner } from "@nezha/piano";
+
+const planner = new TaskPlanner();
+
+const planned = planner.plan(
+  {
+    id: "task-123",
+    title: "实现登录功能",
+    description: "实现完整的登录流程，包括验证码",
+  },
+  "pi",
+);
+
+console.log(planned.shouldDelegate); // 是否需要委托
+console.log(planned.complexity); // 复杂度 1-5
+console.log(planned.subtasks); // 分解的子任务
+```
+
+### 任务来源
+
+Piano 从 PostgreSQL 数据库的 `tasks` 表获取任务：
+
+```sql
+SELECT id, title, description, priority
+FROM tasks
+WHERE status = 'PENDING'
+ORDER BY priority DESC;
+```
+
+当nezha核心添加任务时，带 `[Piano]` 前缀的任务会自动由Piano处理。
