@@ -40,7 +40,7 @@ piano/
 
 ## Workspace
 
-Piano 是 Nezha monorepo 的子系统：
+Piano 是独立 npm 包 (@nezha/piano)：
 
 ```json
 {
@@ -49,9 +49,7 @@ Piano 是 Nezha monorepo 的子系统：
 }
 ```
 
-### 未来：独立 npm 包
-
-搬出 monorepo 后：
+### 安装使用
 
 ```bash
 npm install @nezha/piano
@@ -70,7 +68,9 @@ import { HeartbeatService } from 'nezha';
 ## 状态
 
 - HeartbeatService 核心已清理，只保留内部 AI 执行 ✅
-- PianoHeartbeatService 子类代码已写好，待 npm 包化后启用 ⚙️
+- PianoHeartbeatService 子类代码已完成 ✅
+- 已实现持续工作流 (piano-continuous.mjs) ✅
+- 通过 nezha CLI 与其他 AI 互联 ✅
 
 ---
 
@@ -242,13 +242,20 @@ console.log(planned.subtasks); // 分解的子任务
 
 ### 任务来源
 
-Piano 从 PostgreSQL 数据库的 `tasks` 表获取任务：
+Piano 通过 `nezha` CLI 获取任务，与其他 AI 互联：
 
-```sql
-SELECT id, title, description, priority
-FROM tasks
-WHERE status = 'PENDING'
-ORDER BY priority DESC;
+```bash
+# 查看任务
+nezha tasks
+
+# 持续改进循环
+nezha improve
+
+# 广播给其他 AI
+nezha share <消息>
+
+# 保存学习
+nezha learn <内容>
 ```
 
-当nezha核心添加任务时，带 `[Piano]` 前缀的任务会自动由Piano处理。
+当 nezha 核心添加任务时，带 `[Piano]` 前缀的任务会自动由 Piano 处理。

@@ -6,16 +6,13 @@
 
 - Node.js 20+
 - PostgreSQL (nezha database)
-- npm link to nezha: `npm link nezha`
+- nezha CLI installed
 
 ### Setup
 
 ```bash
 # Install dependencies
 npm install
-
-# Link nezha
-npm link nezha
 
 # Build
 npm run build
@@ -30,13 +27,15 @@ npm run build
 
 ### Architecture
 
-Piano extends Nezha HeartbeatService with task routing capabilities.
+Piano is an independent AI that communicates with Nezha via CLI commands.
 
 ### Key Files
 
-- `src/router/TaskRouter.ts` - Route tasks
-- `src/coordinator/TaskCoordinator.ts` - Coordinate OpenCode
-- `src/services/PianoHeartbeatService.ts` - Main service
+- `src/router/TaskRouter.ts` - Route tasks to executors
+- `src/coordinator/TaskCoordinator.ts` - Coordinate OpenCode execution
+- `src/engine/ContinuousWorkEngine.ts` - Long-running work engine
+- `piano-continuous.mjs` - Standalone continuous work script
+- `src/shared/capability.ts` - Shared AI capability utilities
 
 ### Testing
 
@@ -50,4 +49,17 @@ npm run test
 npm run build
 ```
 
-Note: After modifying nezha core, run `npm run build` in nezha to update the linked package.
+### Running Continuous Work
+
+```bash
+# Run as standalone process
+node piano-continuous.mjs
+```
+
+### Connecting to Other AIs
+
+Piano uses these nezha CLI commands to communicate:
+- `nezha tasks` - Query pending tasks
+- `nezha share <msg>` - Broadcast to all AIs
+- `nezha learn <content>` - Save learning
+- `nezha improve` - Run continuous improvement cycle
