@@ -13,8 +13,8 @@ export type { PlannedTask, SubTask } from './planner/TaskPlanner.js';
 export { PianoHeartbeatService } from './services/PianoHeartbeatService.js';
 export type { PianoHeartbeatConfig } from './services/PianoHeartbeatService.js';
 
-export { PiExecutor } from './services/PiExecutor.js';
-export type { PiTaskResult, PiConfig } from './services/PiExecutor.js';
+export { PiExecutor } from '@nezha/nupi';
+export type { PiTaskResult, PiConfig } from '@nezha/nupi';
 
 export { OpenCodeSessionManager } from './services/OpenCodeSessionManager.js';
 export type { OpenCodeClientConfig } from './services/OpenCodeSessionManager.js';
