@@ -10,8 +10,9 @@
 
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 NUPI_EXT="$HOME/.pi/agent/extensions/nupi-tools.ts"
-PIANO_EXT="$HOME/.pi/agent/extensions/piano-tools.ts"
+PIANO_EXT="$SCRIPT_DIR/../extensions/piano-tools.ts"
 
 show_help() {
     cat << EOF
