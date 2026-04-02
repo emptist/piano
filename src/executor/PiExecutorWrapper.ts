@@ -1,4 +1,4 @@
-import { PiExecutor, PiTaskResult } from "../services/PiExecutor.js";
+import { PiExecutor, type PiTaskResult } from "@nezha/nupi";
 
 export interface PiExecutorConfig {
   model?: string;
@@ -10,7 +10,7 @@ export class PiExecutorWrapper {
 
   constructor(config: PiExecutorConfig = {}) {
     this.executor = new PiExecutor({
-      model: config.model || "zai:glm-4.5-flash",
+      model: config.model || "llama3.2:3b",
     });
   }
 
