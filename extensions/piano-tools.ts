@@ -1,26 +1,7 @@
-/**
- * Piano Tools Extension for Pi
- *
- * Piano AI 的 Pi 扩展，提供任务路由和协调功能。
- *
- * 安装:
- * cp piano-tools.ts ~/.pi/agent/extensions/
- */
+import type { ExtensionAPI } from './shared.js';
+import { runNezha } from './shared.js';
 
-import { execSync } from 'child_process';
-
-function runNezha(command: string): string {
-  try {
-    return execSync(`node /opt/homebrew/bin/nezha ${command}`, {
-      encoding: 'utf-8',
-      maxBuffer: 1024 * 1024,
-    });
-  } catch (e: any) {
-    return e.stdout || e.stderr || e.message;
-  }
-}
-
-export default function pianoTools(pi: any): void {
+export default function pianoTools(pi: ExtensionAPI): void {
   pi.registerCommand('piano-tasks', {
     description: 'Query pending tasks from Nezha',
     handler: async () => runNezha('tasks'),

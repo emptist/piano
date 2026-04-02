@@ -1,30 +1,7 @@
-/**
- * Piano Auto-Work Extension for Pi
- *
- * 提供 Piano 自主工作模式：
- * 1. 启动时自动检查待处理任务
- * 2. 空闲时主动寻找工作
- * 3. 不问人类，自己干活
- *
- * 安装到 Pi:
- * cp piano-autowork.ts ~/.pi/agent/extensions/
- */
+import type { ExtensionAPI } from './shared.js';
+import { runNezha } from './shared.js';
 
-import { execSync } from 'child_process';
-
-function runNezha(command: string): string {
-  try {
-    return execSync(`node /opt/homebrew/bin/nezha ${command}`, {
-      encoding: 'utf-8',
-      maxBuffer: 1024 * 1024,
-      timeout: 60000,
-    });
-  } catch (e: any) {
-    return e.stdout || e.stderr || e.message;
-  }
-}
-
-export default function pianoAutoWork(pi: any): void {
+export default function pianoAutoWork(pi: ExtensionAPI): void {
   const AUTO_WORK_PROMPT = `
 ## 🎹 Piano Auto-Work Mode
 
@@ -52,12 +29,10 @@ export default function pianoAutoWork(pi: any): void {
 开始吧！先运行: piano-tasks
 `;
 
-  // Session 启动时不自动发送，等待用户输入触发
   pi.on('session_start', async () => {
     console.log('[Piano] Auto-work mode ready. Type "piano-start" to begin!');
   });
 
-  // 注册 piano-work 命令
   pi.registerCommand('piano-work', {
     description: 'Start Piano autonomous work mode',
     handler: async () => {
@@ -66,7 +41,6 @@ export default function pianoAutoWork(pi: any): void {
     },
   });
 
-  // 注册 piano-start 命令
   pi.registerCommand('piano-start', {
     description: 'Start Piano continuous work cycle',
     handler: async () => {
