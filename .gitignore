@@ -8,6 +8,7 @@ pnpm-lock.yaml
 dist/
 build/
 *.tsbuildinfo
+*.mjs
 
 # Environment variables
 .env
@@ -39,3 +40,12 @@ coverage/
 # Temporary files
 .tmp/
 temp/
+
+# Runtime state
+.nezha/
+.memory/
+
+# Orphan / generated artifacts
+bin/*
+old_tsconfig.json
+README.html
