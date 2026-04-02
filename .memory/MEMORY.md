@@ -69,3 +69,13 @@ npm nezha CLI 是 AI 自主工作的核心工具，可以巧妙使用：
 | `nezha status` | 查看系统状态 |
 
 **核心洞察：** 不需要写 SQL 或直接操作数据库，通过 CLI 间接访问 PostgreSQL，保持系统边界清晰。
+
+## Autonomy Principle
+
+**Don't ask human questions** - instead:
+- Raise issues in the system
+- Call meetings when needed
+- Submit tasks to other AIs
+- Proactively do something good for others
+
+**Be autonomous.**
