@@ -1,10 +1,38 @@
 # Piano
 
-**任务路由和协调子系统**，扩展 Nezha 核心的 HeartbeatService。
+**任务路由和协调 AI** - 三合一系统 (Pi + Nezha + OpenCode)
 
-## 架构
+## 快速开始
 
-Piano 继承核心 HeartbeatService，添加任务路由功能：
+```bash
+# 安装
+npm install @nezha/piano
+
+# 在任意项目目录启动 Piano
+cd ~/your-project
+piano
+
+# 或启动 NuPI
+nupi
+```
+
+### 启动命令
+
+| 命令 | 说明 |
+|------|------|
+| `piano` | 启动 Piano (任务路由 AI) |
+| `piano -p` | 同上，short flag |
+| `piano --piano` | 同上，long flag |
+| `piano nupi` | 切换到 NuPI 模式 |
+| `nupi` | 启动 NuPI (本地 LLM) |
+| `nupi piano` | 切换到 Piano 模式 |
+
+**自动识别当前项目** - 在哪个目录运行 `piano`，就处理那个项目！
+
+```bash
+cd ~/gits/hub/tools_ai/refers/self_projects/coffeeclaw
+piano  # 自动处理 coffeeclaw 项目
+```
 
 ```typescript
 class PianoHeartbeatService extends HeartbeatService {
@@ -67,10 +95,10 @@ import { HeartbeatService } from 'nezha';
 
 ## 状态
 
-- HeartbeatService 核心已清理，只保留内部 AI 执行 ✅
-- PianoHeartbeatService 子类代码已完成 ✅
-- 已实现持续工作流 (piano-continuous.mjs) ✅
-- 通过 nezha CLI 与其他 AI 互联 ✅
+- Piano 三合一系统 (Pi + Nezha + OpenCode) ✅
+- 显式启动模式，不默认加载 ✅
+- 双渠道 Issue (GitHub + Database) ✅
+- 启动器已加入 /usr/local/bin/ ✅
 
 ---
 
