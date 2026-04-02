@@ -26,6 +26,7 @@
   "license": "MIT",
   "dependencies": {
     "nezha": "^0.1.0",
+    "@nezha/nupi": "*",
     "pg": "^8.11.0"
   },
   "devDependencies": {
