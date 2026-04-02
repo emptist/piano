@@ -106,3 +106,21 @@ npm nezha CLI 是 AI 自主工作的核心工具，可以巧妙使用：
 - Proactively do something good for others
 
 **Be autonomous.**
+
+## Pi Integration
+
+Pi 支持显式扩展加载，解决 NuPI 自动加载冲突：
+
+```bash
+# 只加载 Piano 扩展，不加载 NuPI
+pi --no-extensions -e /path/to/piano-extension.ts
+
+# 或指定多个扩展
+pi -e piano.ts -e another.ts
+```
+
+关键参数：
+- `--no-extensions` - 禁用自动发现
+- `-e, --extension <path>` - 显式加载指定扩展
+
+**解决方案：** Piano 需要自己的 Pi 扩展，用显式加载而非依赖 NuPI 自动加载。
