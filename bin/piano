@@ -10,7 +10,15 @@
 
 set -e
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# 解析脚本的真实路径（处理 symlink）
+SOURCE="${BASH_SOURCE[0]}"
+while [ -L "$SOURCE" ]; do
+    DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+    SOURCE="$(readlink "$SOURCE")"
+    [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+SCRIPT_DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+
 PIANO_EXT="$SCRIPT_DIR/../extensions/piano-tools.ts"
 NUPI_EXT="$HOME/.pi/agent/extensions/nupi-tools.ts"
 
@@ -33,7 +41,7 @@ EOF
 
 run_piano() {
     echo "🎹 启动 Piano 自主工作模式..."
-    pi --no-extensions -e "$PIANO_EXT" "$@"
+    pi -i --no-extensions -e "$PIANO_EXT" "$@"
 }
 
 run_nupi() {
