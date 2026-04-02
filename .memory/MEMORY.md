@@ -134,3 +134,11 @@ pi -e piano.ts -e another.ts
 - 创建 issue #3e7192f5: 双系统方案
   - nezha: 任务跟踪和分配
   - GitHub: 讨论和异步沟通
+
+## Dual-Issue Strategy
+
+Piano 在双渠道创建 issue 讨论问题：
+1. **GitHub**: https://github.com/emptist/piano/issues/1
+2. **Database**: task ID 8765c7d7
+
+目标：未来能整合两个系统的 issue。
