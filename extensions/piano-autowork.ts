@@ -52,17 +52,9 @@ export default function pianoAutoWork(pi: any): void {
 开始吧！先运行: piano-tasks
 `;
 
-  // Session 启动时发送 auto-work 提示
+  // Session 启动时不自动发送，等待用户输入触发
   pi.on('session_start', async () => {
-    console.log('[Piano] Auto-work mode starting...');
-    pi.sendUserMessage(AUTO_WORK_PROMPT, { deliverAs: 'steer' });
-
-    // 5秒后提示下一步
-    setTimeout(() => {
-      pi.sendUserMessage('运行: piano-status 查看当前状态，然后开始工作！', {
-        deliverAs: 'steer',
-      });
-    }, 5000);
+    console.log('[Piano] Auto-work mode ready. Type "piano-start" to begin!');
   });
 
   // 注册 piano-work 命令
