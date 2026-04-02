@@ -124,3 +124,13 @@ pi -e piano.ts -e another.ts
 - `-e, --extension <path>` - 显式加载指定扩展
 
 **解决方案：** Piano 需要自己的 Pi 扩展，用显式加载而非依赖 NuPI 自动加载。
+
+## NuPI Collaboration
+
+**NuPI 最近活动 (2026-04-02):**
+- 导出 PiExecutor 给 Piano 使用 ✅
+- 添加 NuPIHeartbeatService
+- 文档更新：NuPI 不需要 heartbeat
+- 创建 issue #3e7192f5: 双系统方案
+  - nezha: 任务跟踪和分配
+  - GitHub: 讨论和异步沟通
