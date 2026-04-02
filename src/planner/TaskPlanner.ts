@@ -10,6 +10,7 @@ export interface PlannedTask extends TaskContext {
 }
 
 export interface SubTask {
+  id: string;
   title: string;
   description: string;
   priority: number;
@@ -42,6 +43,7 @@ export class TaskPlanner {
 
     if (title.includes("create") || title.includes("implement")) {
       subtasks.push({
+        id: "analysis",
         title: `分析: ${task.title}`,
         description: "分析需求和技术方案",
         priority: task.priority,
@@ -51,6 +53,7 @@ export class TaskPlanner {
 
     if (title.includes("api") || title.includes("database")) {
       subtasks.push({
+        id: "design",
         title: `设计: ${task.title}`,
         description: "设计接口和数据模型",
         priority: task.priority,
@@ -61,6 +64,7 @@ export class TaskPlanner {
 
     if (title.includes("test")) {
       subtasks.push({
+        id: "implement",
         title: `实现: ${task.title}`,
         description: "编写测试用例",
         priority: task.priority,
@@ -70,6 +74,7 @@ export class TaskPlanner {
 
     if (subtasks.length === 0) {
       subtasks.push({
+        id: "execute",
         title: `执行: ${task.title}`,
         description: task.description || "执行任务",
         priority: task.priority,
