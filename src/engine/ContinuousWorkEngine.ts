@@ -14,6 +14,8 @@ export class ContinuousWorkEngine {
   private config: EngineConfig;
   private pool: Pool;
   private running = false;
+  private shuttingDown = false;
+  private currentTaskPromise: Promise<void> | null = null;
 
   constructor(config: EngineConfig) {
     this.coordinator = new TaskCoordinator({
@@ -32,8 +34,16 @@ export class ContinuousWorkEngine {
     this.runLoop();
   }
 
-  async stop() {
+  async stop(): Promise<void> {
+    if (this.shuttingDown) return;
+    this.shuttingDown = true;
     this.running = false;
+    console.log('[ContinuousWorkEngine] Stopping, waiting for in-flight tasks...');
+
+    if (this.currentTaskPromise) {
+      await this.currentTaskPromise;
+    }
+
     console.log('[ContinuousWorkEngine] Stopped');
   }
 
@@ -80,7 +90,10 @@ export class ContinuousWorkEngine {
     let heartbeatCounter = 0;
     while (this.running) {
       try {
-        await this.processOneTask();
+        if (!this.shuttingDown) {
+          this.currentTaskPromise = this.processOneTask();
+          await this.currentTaskPromise;
+        }
 
         heartbeatCounter++;
         if (heartbeatCounter >= 12) {
@@ -90,6 +103,8 @@ export class ContinuousWorkEngine {
       } catch (error) {
         console.error('[ContinuousWorkEngine] Error in loop:', error);
       }
+
+      if (this.shuttingDown) break;
 
       await new Promise(resolve => setTimeout(resolve, this.config.pollIntervalMs));
     }

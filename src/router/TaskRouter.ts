@@ -1,13 +1,7 @@
 import { AICapability } from "nezha";
+import { AI_CAPABILITY_LEVELS } from "../shared/capability.js";
 
 export type ExecutorType = "internal" | "opencode" | "pi" | "hybrid";
-
-export const AI_CAPABILITY_LEVELS: Record<AICapability, number> = {
-  pi: 1,
-  internal: 2,
-  opencode: 3,
-  human: 4,
-};
 
 export interface TaskRouterConfig {
   useOpenCode: boolean;

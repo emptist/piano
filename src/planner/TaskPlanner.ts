@@ -1,5 +1,6 @@
 import type { TaskContext } from "../coordinator/TaskCoordinator.js";
 import type { AICapability } from "nezha";
+import { needsDelegation, getDelegationTarget } from "../shared/capability.js";
 
 export interface PlannedTask extends TaskContext {
   subtasks: SubTask[];
@@ -21,7 +22,7 @@ export class TaskPlanner {
     const subtasks = this.decompose(task);
     const estimatedDuration = this.estimateDuration(subtasks);
     const complexity = this.estimateComplexity(task);
-    const shouldDelegate = this.needsDelegation(complexity, selfCapability);
+    const shouldDelegate = needsDelegation(complexity, selfCapability);
 
     return {
       ...task,
@@ -30,7 +31,7 @@ export class TaskPlanner {
       complexity,
       shouldDelegate,
       delegateTo: shouldDelegate
-        ? this.getDelegationTarget(selfCapability)
+        ? getDelegationTarget(selfCapability)
         : undefined,
     };
   }
@@ -112,33 +113,6 @@ export class TaskPlanner {
     }
 
     return Math.min(5, Math.max(1, Math.floor(score)));
-  }
-
-  private needsDelegation(
-    complexity: number,
-    selfCapability: AICapability,
-  ): boolean {
-    const levels: Record<AICapability, number> = {
-      pi: 1,
-      internal: 2,
-      opencode: 3,
-      human: 4,
-    };
-    const requiredLevel = complexity >= 5 ? 3 : complexity >= 3 ? 2 : 1;
-    return requiredLevel > levels[selfCapability];
-  }
-
-  private getDelegationTarget(selfCapability: AICapability): AICapability {
-    const levels: Record<AICapability, number> = {
-      pi: 1,
-      internal: 2,
-      opencode: 3,
-      human: 4,
-    };
-    if (levels[selfCapability] < 3) {
-      return "opencode";
-    }
-    return "human";
   }
 
   private estimateDuration(subtasks: SubTask[]): number {

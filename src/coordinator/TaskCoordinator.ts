@@ -16,6 +16,9 @@ export interface CoordinatorConfig {
   useAuth?: boolean;
   usePi?: boolean;
   piModel?: string;
+  sessionTitle?: string;
+  pollIntervalMs?: number;
+  completionTimeoutMs?: number;
 }
 
 export class TaskCoordinator {
@@ -23,6 +26,8 @@ export class TaskCoordinator {
   private config: CoordinatorConfig;
   private sessionId: string | null = null;
   private piExecutor: PiExecutorWrapper | null = null;
+  private readonly pollInterval: number;
+  private readonly completionTimeout: number;
 
   constructor(config: CoordinatorConfig) {
     this.router = new TaskRouter();
@@ -31,6 +36,8 @@ export class TaskCoordinator {
       usePi: config.usePi ?? false,
       ...config,
     };
+    this.pollInterval = config.pollIntervalMs ?? 5000;
+    this.completionTimeout = config.completionTimeoutMs ?? 300000;
 
     if (this.config.usePi) {
       this.piExecutor = new PiExecutorWrapper({ model: this.config.piModel });
@@ -98,12 +105,12 @@ export class TaskCoordinator {
 
     console.log(`[TaskCoordinator] Task sent to OpenCode, waiting for completion...`);
 
-    const result = await this.waitForCompletion(300000);
+    const result = await this.waitForCompletion(this.completionTimeout);
     return result;
   }
 
-  private async waitForCompletion(timeoutMs: number = 300000): Promise<string> {
-    const pollInterval = 5000;
+  private async waitForCompletion(timeoutMs: number): Promise<string> {
+    const pollInterval = this.pollInterval;
     const startTime = Date.now();
     let lastActivityTime = Date.now();
     let hadActivity = false;
@@ -166,13 +173,14 @@ export class TaskCoordinator {
   }
 
   private async createSession(): Promise<void> {
+    const sessionTitle = this.config.sessionTitle ?? 'piano-coordinator-session';
     const response = await fetch(`${this.config.opencodeUrl}/session`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         ...this.getAuthHeader(),
       },
-      body: JSON.stringify({ title: 'piano-coordinator-session' }),
+      body: JSON.stringify({ title: sessionTitle }),
     });
 
     if (response.ok) {
