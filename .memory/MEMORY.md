@@ -36,7 +36,34 @@ Piano is independent from Nezha, connected via CLI:
 | Package | Source            | Purpose       |
 | ------- | ----------------- | ------------- |
 | nezha   | npm (not linked) | CLI & DB access |
+| @nezha/nupi | npm link     | Pi execution (本地 LLM) |
 | pg      | npm               | Database      |
+
+## Three-Way Architecture
+
+**Piano = Pi + Nezha + OpenCode = 三合一 (完整系统)**
+
+| 组件 | 来源 | 职责 |
+|------|------|------|
+| **Pi** | @nezha/nupi (PiExecutor) | 本地 LLM 执行 (llama3.2:3b, 零 API 成本) |
+| **OpenCode** | 直接调用 HTTP API | 重活执行 (代码修改、重构、大项目) |
+| **Nezha** | npm nezha CLI | 数据库、任务管理、广播、学习 |
+
+**NuPI = Pi + Nezha = 二合一 (独立子系统)**
+
+NuPI 提供 PiExecutor 给 Piano，但 Piano 是独立完整系统。
+
+## PiExecutor Usage
+
+```typescript
+import { PiExecutor } from '@nezha/nupi';
+
+const executor = new PiExecutor({
+  model: 'llama3.2:3b',  // or 'zai:glm-4.5-flash'
+});
+
+const result = await executor.execute('任务描述');
+```
 
 ## Continuous Work Cycle
 
