@@ -1,0 +1,62 @@
+#!/bin/bash
+# Piano Launcher - 多种启动方式
+# 
+# 用法:
+#   piano              # 启动 Piano 模式 (默认)
+#   piano -p           # 同上，short flag
+#   piano --piano      # 同上，long flag
+#   piano nupi        # 启动 NuPI 模式
+#   piano --help      # 显示帮助
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PIANO_EXT="$SCRIPT_DIR/extensions/piano-tools.ts"
+NUPI_EXT="$HOME/.pi/agent/extensions/nupi-tools.ts"
+
+show_help() {
+    cat << EOF
+Piano Launcher - 自主工作 AI 启动器
+
+用法:
+    piano              启动 Piano 模式
+    piano -p, --piano  启动 Piano 模式 (short/long flag)
+    piano nupi         启动 NuPI 模式
+    piano --help       显示帮助
+
+示例:
+    piano              # 启动 Piano 自动工作
+    piano --piano      # 同上
+    piano nupi         # 启动 NuPI
+EOF
+}
+
+run_piano() {
+    echo "🎹 启动 Piano 自主工作模式..."
+    pi --no-extensions -e "$PIANO_EXT" "$@"
+}
+
+run_nupi() {
+    echo "🟡 启动 NuPI 模式..."
+    pi --no-extensions -e "$NUPI_EXT" "$@"
+}
+
+# 解析参数
+case "${1:-}" in
+    -p|--piano|"")
+        shift
+        run_piano "$@"
+        ;;
+    nupi)
+        shift
+        run_nupi "$@"
+        ;;
+    -h|--help)
+        show_help
+        ;;
+    *)
+        echo "未知选项: $1"
+        show_help
+        exit 1
+        ;;
+esac

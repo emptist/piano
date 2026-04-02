@@ -1,0 +1,59 @@
+#!/bin/bash
+# NuPI Launcher - 参考 Piano 设计
+# 
+# 用法:
+#   nupi              # 启动 NuPI 模式 (默认)
+#   nupi -n           # 同上，short flag
+#   nupi --nupi       # 同上，long flag
+#   nupi piano        # 启动 Piano 模式
+#   nupi --help       # 显示帮助
+
+set -e
+
+NUPI_EXT="$HOME/.pi/agent/extensions/nupi-tools.ts"
+PIANO_EXT="$HOME/.pi/agent/extensions/piano-tools.ts"
+
+show_help() {
+    cat << EOF
+NuPI Launcher - 本地 LLM 启动器
+
+用法:
+    nupi              启动 NuPI 模式
+    nupi -n, --nupi   启动 NuPI 模式 (short/long flag)
+    nupi piano        # 启动 Piano 模式
+    nupi --help       显示帮助
+
+示例:
+    nupi              # 启动 NuPI (本地 LLM)
+    nupi piano        # 启动 Piano (任务路由)
+EOF
+}
+
+run_nupi() {
+    echo "🟡 启动 NuPI 模式..."
+    pi --no-extensions -e "$NUPI_EXT" "$@"
+}
+
+run_piano() {
+    echo "🎹 启动 Piano 模式..."
+    pi --no-extensions -e "$PIANO_EXT" "$@"
+}
+
+case "${1:-}" in
+    -n|--nupi|"")
+        shift
+        run_nupi "$@"
+        ;;
+    piano)
+        shift
+        run_piano "$@"
+        ;;
+    -h|--help)
+        show_help
+        ;;
+    *)
+        echo "未知选项: $1"
+        show_help
+        exit 1
+        ;;
+esac
