@@ -142,3 +142,25 @@ Piano 在双渠道创建 issue 讨论问题：
 2. **Database**: task ID 8765c7d7
 
 目标：未来能整合两个系统的 issue。
+
+## Launch Commands
+
+Piano 提供全局启动命令 (在 `/usr/local/bin/`):
+
+```bash
+piano              # 启动 Piano (任务路由 AI)
+piano -p           # short flag
+piano --piano      # long flag  
+piano nupi         # 切换到 NuPI 模式
+nupi               # 启动 NuPI (本地 LLM)
+nupi piano         # 切换到 Piano 模式
+```
+
+**自动识别项目目录** - 在哪个目录运行，就处理那个项目！
+
+```bash
+cd ~/project/coffeeclaw
+piano  # 自动处理 coffeeclaw 项目
+```
+
+**显式启动模式** - 不再默认自动加载，尊重用户选择。
