@@ -1,5 +1,6 @@
 import { TaskRouter, ExecutorType } from '../router/TaskRouter.js';
 import { PiExecutorWrapper } from '../executor/PiExecutorWrapper.js';
+import { OpenCodeSessionManager } from '../services/OpenCodeSessionManager.js';
 
 export interface TaskContext {
   id: string;
@@ -24,10 +25,10 @@ export interface CoordinatorConfig {
 export class TaskCoordinator {
   private router: TaskRouter;
   private config: CoordinatorConfig;
-  private sessionId: string | null = null;
   private piExecutor: PiExecutorWrapper | null = null;
   private readonly pollInterval: number;
   private readonly completionTimeout: number;
+  private sessionManager: OpenCodeSessionManager;
 
   constructor(config: CoordinatorConfig) {
     this.router = new TaskRouter();
@@ -38,6 +39,13 @@ export class TaskCoordinator {
     };
     this.pollInterval = config.pollIntervalMs ?? 5000;
     this.completionTimeout = config.completionTimeoutMs ?? 300000;
+
+    this.sessionManager = OpenCodeSessionManager.create({
+      opencodeUrl: config.opencodeUrl,
+      username: config.opencodeAuth?.username,
+      password: config.opencodeAuth?.password,
+      useAuth: this.config.useAuth,
+    });
 
     if (this.config.usePi) {
       this.piExecutor = new PiExecutorWrapper({ model: this.config.piModel });
@@ -75,33 +83,13 @@ export class TaskCoordinator {
   }
 
   private async executeOnOpenCode(task: TaskContext): Promise<string> {
-    if (!this.sessionId || !(await this.isSessionAlive())) {
-      if (this.sessionId) {
-        console.log(`[TaskCoordinator] Session ${this.sessionId} dead, recreating...`);
-      }
-      await this.createSession();
-    }
-
-    if (!this.sessionId) {
-      throw new Error('Failed to create OpenCode session');
-    }
+    await this.sessionManager.getSessionId();
 
     const message = this.buildTaskMessage(task);
 
-    const response = await fetch(`${this.config.opencodeUrl}/session/${this.sessionId}/message`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...this.getAuthHeader(),
-      },
-      body: JSON.stringify({
-        parts: [{ type: 'text', text: message }],
-      }),
+    await this.sessionManager.sendMessage({
+      parts: [{ type: 'text', text: message }],
     });
-
-    if (!response.ok) {
-      throw new Error(`OpenCode message failed: ${response.status}`);
-    }
 
     console.log(`[TaskCoordinator] Task sent to OpenCode, waiting for completion...`);
 
@@ -110,41 +98,35 @@ export class TaskCoordinator {
   }
 
   private async waitForCompletion(timeoutMs: number): Promise<string> {
-    const pollInterval = this.pollInterval;
     const startTime = Date.now();
     let lastActivityTime = Date.now();
     let hadActivity = false;
 
     while (Date.now() - startTime < timeoutMs) {
-      await new Promise(resolve => setTimeout(resolve, pollInterval));
+      await new Promise(resolve => setTimeout(resolve, this.pollInterval));
 
       try {
-        const response = await fetch(`${this.config.opencodeUrl}/session/${this.sessionId}`, {
-          headers: this.getAuthHeader(),
-        });
+        const data = await this.sessionManager.getSessionStatus();
+        if (!data) continue;
 
-        if (!response.ok) continue;
-
-        const data = (await response.json()) as {
+        const statusData = data as {
           status?: string;
-          result?: string;
           summary?: { additions?: number; deletions?: number; files?: number };
           time?: { updated?: number };
         };
 
-        const additions = data.summary?.additions ?? 0;
-        const deletions = data.summary?.deletions ?? 0;
-        const files = data.summary?.files ?? 0;
+        const additions = statusData.summary?.additions ?? 0;
+        const deletions = statusData.summary?.deletions ?? 0;
+        const files = statusData.summary?.files ?? 0;
         const hasActivity = additions > 0 || deletions > 0;
-        const lastUpdate = data.time?.updated;
+        const lastUpdate = statusData.time?.updated;
 
         if (hasActivity) {
           lastActivityTime = Date.now();
           hadActivity = true;
           console.log(`[TaskCoordinator] Processing... additions: ${additions}, files: ${files}`);
         } else if (hadActivity && lastUpdate) {
-          const now = Date.now();
-          const idleTime = now - lastActivityTime;
+          const idleTime = Date.now() - lastUpdate;
 
           if (idleTime > 60000) {
             if (!hadActivity || (additions === 0 && deletions === 0 && files === 0)) {
@@ -172,24 +154,6 @@ export class TaskCoordinator {
     return 'Task timeout - still processing';
   }
 
-  private async createSession(): Promise<void> {
-    const sessionTitle = this.config.sessionTitle ?? 'piano-coordinator-session';
-    const response = await fetch(`${this.config.opencodeUrl}/session`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...this.getAuthHeader(),
-      },
-      body: JSON.stringify({ title: sessionTitle }),
-    });
-
-    if (response.ok) {
-      const data = (await response.json()) as { id: string };
-      this.sessionId = data.id.startsWith('ses_') ? data.id : `ses_${data.id}`;
-      console.log(`[TaskCoordinator] Created session: ${this.sessionId}`);
-    }
-  }
-
   private buildTaskMessage(task: TaskContext): string {
     return `
 ## 任务
@@ -212,40 +176,24 @@ Save via: node dist/cli/index.js areflect "[LEARN] insight: ..."
 `;
   }
 
-  private getAuthHeader(): Record<string, string> {
-    if (!this.config.useAuth) return {};
-
-    const username =
-      this.config.opencodeAuth?.username || process.env.OPENCODE_SERVER_USERNAME || 'opencode';
-    const password =
-      this.config.opencodeAuth?.password || process.env.OPENCODE_SERVER_PASSWORD || 'nezha-secret';
-
-    const credentials = Buffer.from(`${username}:${password}`).toString('base64');
-    return { Authorization: `Basic ${credentials}` };
-  }
-
-  getSessionId(): string | null {
-    return this.sessionId;
-  }
-
-  async isSessionAlive(): Promise<boolean> {
-    if (!this.sessionId) return false;
-
+  async getSessionId(): Promise<string | null> {
     try {
-      const response = await fetch(`${this.config.opencodeUrl}/session/${this.sessionId}`, {
-        headers: this.getAuthHeader(),
-      });
-      return response.ok;
+      return await this.sessionManager.getSessionId();
     } catch {
-      return false;
+      return null;
     }
   }
 
-  async reuseSession(sessionId: string) {
-    this.sessionId = sessionId;
-    if (!(await this.isSessionAlive())) {
-      this.sessionId = null;
-      await this.createSession();
+  async isSessionAlive(): Promise<boolean> {
+    const sessionId = this.sessionManager['sessionId'];
+    if (!sessionId) return false;
+    return this.sessionManager.validateSession(sessionId).catch(() => false);
+  }
+
+  async reuseSession(sessionId: string): Promise<void> {
+    const isValid = await this.sessionManager.validateSession(sessionId).catch(() => false);
+    if (!isValid) {
+      this.sessionManager.invalidateSession();
     }
   }
 

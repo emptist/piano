@@ -103,6 +103,10 @@ export class OpenCodeSessionManager {
     OpenCodeSessionManager.instance = null;
   }
 
+  static create(config: OpenCodeClientConfig): OpenCodeSessionManager {
+    return new OpenCodeSessionManager(config);
+  }
+
   async getSessionId(forceRecreate: boolean = false): Promise<string> {
     if (this.sessionId && !forceRecreate) {
       const isValid = await this.validateSession(this.sessionId);
@@ -128,7 +132,7 @@ export class OpenCodeSessionManager {
     }
   }
 
-  private async validateSession(sessionId: string): Promise<boolean> {
+  async validateSession(sessionId: string): Promise<boolean> {
     try {
       const response = await fetch(
         `${this.config.opencodeUrl}/session/${sessionId}`,
