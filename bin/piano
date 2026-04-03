@@ -2,10 +2,8 @@
 # Piano Launcher
 #
 # Usage:
-#   piano              Delegate to Nezha/OpenCode (default, no AI needed)
-#   piano -i           Start Pi interactive mode (with 3B model)
-#   piano --interactive Same as -i
-#   piano --print      Non-interactive delegation (alias for default)
+#   piano              Start Piano mode (Pi + extensions)
+#   piano --print      Non-interactive delegation only (no Pi)
 #   piano nupi         Start NuPI mode
 #   piano --help       Show help
 
@@ -25,15 +23,28 @@ show_help() {
 Piano Launcher
 
 Usage:
-    piano              Delegate work to Nezha/OpenCode (default)
-    piano -i           Start Pi interactive mode
-    piano --print      Non-interactive delegation (same as default)
+    piano              Start Piano (Pi interactive mode)
+    piano --print      Delegate to Nezha only (no AI)
     piano nupi         Start NuPI mode
     piano --help       Show this help
-
-Environment:
-    PIANO_DELEGATE_ALL Set to 'false' to use 3B model instead of delegating
 EOF
+}
+
+run_piano() {
+    local PI_ARGS=("-i" "--no-extensions" "-e" "$PIANO_EXT")
+
+    if [ -t 1 ]; then
+        exec pi "${PI_ARGS[@]}" "$@"
+    else
+        echo "[Piano] No TTY on stdout. Trying pseudo-TTY..." >&2
+        if command -v script &>/dev/null; then
+            exec script -q /dev/null pi "${PI_ARGS[@]}" "$@"
+        else
+            echo "[Piano] No TTY and no 'script' command." >&2
+            echo "[Piano] Use: piano --print  (no TTY needed)" >&2
+            return 1
+        fi
+    fi
 }
 
 run_piano_print() {
@@ -66,34 +77,17 @@ run_piano_print() {
     echo "[PianO] Done. Tasks queued for OpenCode."
 }
 
-run_piano_interactive() {
-    local PI_ARGS=("-i" "--no-extensions" "-e" "$PIANO_EXT")
-
-    if [ -t 1 ]; then
-        exec pi "${PI_ARGS[@]}" "$@"
-    else
-        echo "[Piano] No TTY on stdout. Trying pseudo-TTY..." >&2
-        if command -v script &>/dev/null; then
-            exec script -q /dev/null pi "${PI_ARGS[@]}" "$@"
-        else
-            echo "[Piano] No TTY and no 'script' command available." >&2
-            echo "[Piano] Use: piano --print  (no TTY needed)" >&2
-            return 1
-        fi
-    fi
-}
-
 run_nupi() {
     echo "[Piano] Starting NuPI mode..."
     exec pi --no-extensions -e "$NUPI_EXT" "$@"
 }
 
 case "${1:-}" in
-    -i|--interactive)
+    ""|-p|--piano)
         shift
-        run_piano_interactive "$@"
+        run_piano "$@"
         ;;
-    --print|-p|"")
+    --print)
         shift
         run_piano_print "$@"
         ;;
