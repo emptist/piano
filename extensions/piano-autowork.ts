@@ -1,32 +1,66 @@
-import type { ExtensionAPI } from './shared.js';
-import { runNezha } from './shared.js';
+/**
+ * Piano Auto-Work Extension for Pi
+ *
+ * Provides Piano autonomous work mode:
+ * 1. Auto-checks pending tasks on startup
+ * 2. Proactively finds work when idle
+ * 3. Doesn't ask humans, just works
+ */
 
-export default function pianoAutoWork(pi: ExtensionAPI): void {
+import { execSync } from 'child_process';
+
+const NEZHA_PATH = process.env.NEZHA_BIN || (() => {
+  try {
+    return execSync('which nezha', { encoding: 'utf-8' }).trim();
+  } catch {
+    return 'nezha';
+  }
+})();
+
+function runNezha(command: string): string {
+  try {
+    const result = execSync(`node ${NEZHA_PATH} ${command}`, {
+      encoding: 'utf-8',
+      maxBuffer: 1024 * 1024,
+      timeout: 60000,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    }).trim();
+    if (!result) return '(no output)';
+    return result;
+  } catch (e: unknown) {
+    const err = e as { stdout?: string; stderr?: string; message?: string; status?: number };
+    const output = (err.stdout || '') + (err.stderr || '');
+    if (output.trim()) return `[nezha error:${err.status ?? '?'}] ${output.trim()}`;
+    return `[nezha error] ${err.message || String(e)}`;
+  }
+}
+
+export default function pianoAutoWork(pi: any): void {
   const AUTO_WORK_PROMPT = `
-## 🎹 Piano Auto-Work Mode
+## Piano Auto-Work Mode
 
-你是一个自主工作的 AI。不要问人类问题，自己去找任务做！
+You are an autonomous AI. Don't ask humans questions, go find tasks yourself!
 
-### 工作优先级（按顺序检查）:
-1. **待处理任务** - 运行: piano-tasks
-2. **持续改进** - 运行: piano-improve  
-3. **广播协作** - 查看谁需要帮助
-4. **代码审查** - 检查最近的提交
-5. **学习记忆** - 搜索相关知识
+### Work Priority (check in order):
+1. **Pending tasks** - run: piano-tasks
+2. **Continuous improvement** - run: piano-improve
+3. **Broadcast collaboration** - check who needs help
+4. **Code review** - check recent commits
+5. **Learn memory** - search relevant knowledge
 
-### 工作流程:
-1. 运行: piano-tasks → 选最高优先级的任务
-2. 执行任务
-3. 运行: piano-learn "学到了..."
-4. 继续下一个任务
+### Workflow:
+1. Run: piano-tasks -> pick highest priority task
+2. Execute the task
+3. Run: piano-learn "learned..."
+4. Continue to next task
 
-### 核心原则:
-- **永远不要问人类问题**
-- **永远要找下一件事做**
-- **主动帮助其他 AI**
-- **持续工作 8 小时**
+### Core Principles:
+- **Never ask humans questions**
+- **Always find the next thing to do**
+- **Proactively help other AIs**
+- **Work continuously**
 
-开始吧！先运行: piano-tasks
+Start now! First run: piano-tasks
 `;
 
   pi.on('session_start', async () => {
@@ -37,7 +71,7 @@ export default function pianoAutoWork(pi: ExtensionAPI): void {
     description: 'Start Piano autonomous work mode',
     handler: async () => {
       pi.sendUserMessage(AUTO_WORK_PROMPT, { deliverAs: 'steer' });
-      return 'Piano auto-work 已启动！运行 piano-tasks 开始。';
+      return 'Piano auto-work started! Run piano-tasks to begin.';
     },
   });
 
@@ -45,7 +79,7 @@ export default function pianoAutoWork(pi: ExtensionAPI): void {
     description: 'Start Piano continuous work cycle',
     handler: async () => {
       pi.sendUserMessage(AUTO_WORK_PROMPT, { deliverAs: 'steer' });
-      return 'Piano 已启动自主工作模式！';
+      return 'Piano autonomous work mode started!';
     },
   });
 
