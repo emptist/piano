@@ -1,12 +1,26 @@
 import { TaskCoordinator, TaskContext } from '../coordinator/TaskCoordinator.js';
 import { Pool } from 'pg';
 
+const DEFAULT_POLL_INTERVAL_MS = 10_000;
+const HEARTBEAT_EVERY_N_CYCLES = 12;
+const IDLE_THRESHOLD_MS = 60_000;
+const BACKOFF_BASE_MS = 1_000;
+const BACKOFF_MAX_MS = 60_000;
+const MAX_TITLE_LENGTH = 500;
+const MAX_RESULT_LENGTH = 10_000;
+
 export interface EngineConfig {
   dbPool: Pool;
   opencodeUrl: string;
   opencodeAuth?: { username: string; password: string };
-  pollIntervalMs: number;
+  pollIntervalMs?: number;
   useAuth?: boolean;
+}
+
+function sanitizeForSql(value: string, maxLength: number): string {
+  return value
+    .replace(/[\x00-\x1f\x7f]/g, ' ')
+    .slice(0, maxLength);
 }
 
 export class ContinuousWorkEngine {
@@ -16,6 +30,8 @@ export class ContinuousWorkEngine {
   private running = false;
   private shuttingDown = false;
   private currentTaskPromise: Promise<void> | null = null;
+  private consecutiveErrors = 0;
+  private readonly pollIntervalMs: number;
 
   constructor(config: EngineConfig) {
     this.coordinator = new TaskCoordinator({
@@ -25,11 +41,24 @@ export class ContinuousWorkEngine {
     });
     this.config = config;
     this.pool = config.dbPool;
+    this.pollIntervalMs = config.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
   }
 
   async start() {
     if (this.running) return;
     this.running = true;
+    this.shuttingDown = false;
+    this.consecutiveErrors = 0;
+
+    const onSignal = async (signal: string) => {
+      console.log(`[ContinuousWorkEngine] Received ${signal}, shutting down...`);
+      await this.stop();
+      process.exit(0);
+    };
+
+    process.on('SIGINT', () => onSignal('SIGINT'));
+    process.on('SIGTERM', () => onSignal('SIGTERM'));
+
     console.log('[ContinuousWorkEngine] Starting...');
     this.runLoop();
   }
@@ -69,21 +98,33 @@ export class ContinuousWorkEngine {
     const resultText = result.result.toLowerCase();
 
     if (resultText.includes('error') || resultText.includes('fail')) {
+      const safeTitle = sanitizeForSql(task.title, MAX_TITLE_LENGTH);
+      const safeResult = sanitizeForSql(result.result, MAX_RESULT_LENGTH);
       await this.pool.query(
         `INSERT INTO tasks (title, description, priority) VALUES ($1, $2, $3)`,
-        [`修复: ${task.title}`, `执行失败: ${result.result}`, task.priority + 10]
+        [`修复: ${safeTitle}`, `执行失败: ${safeResult}`, task.priority + 10]
       );
     }
 
     if (resultText.includes('todo') || resultText.includes('后续')) {
       const match = resultText.match(/todo[:\s]+(.+?)(?:\n|$)/i);
       if (match?.[1]) {
+        const safeTodo = sanitizeForSql(match[1].trim(), MAX_TITLE_LENGTH);
+        const safeTitle = sanitizeForSql(task.title, MAX_TITLE_LENGTH);
         await this.pool.query(
           `INSERT INTO tasks (title, description, priority) VALUES ($1, $2, $3)`,
-          [match[1].trim(), `从任务 ${task.title} 分解`, task.priority]
+          [safeTodo, `从任务 ${safeTitle} 分解`, task.priority]
         );
       }
     }
+  }
+
+  private getBackoffDelay(): number {
+    const delay = Math.min(
+      BACKOFF_BASE_MS * Math.pow(2, this.consecutiveErrors),
+      BACKOFF_MAX_MS
+    );
+    return Math.round(delay);
   }
 
   private async runLoop() {
@@ -95,18 +136,29 @@ export class ContinuousWorkEngine {
           await this.currentTaskPromise;
         }
 
+        this.consecutiveErrors = 0;
+
         heartbeatCounter++;
-        if (heartbeatCounter >= 12) {
+        if (heartbeatCounter >= HEARTBEAT_EVERY_N_CYCLES) {
           await this.heartbeat();
           heartbeatCounter = 0;
         }
       } catch (error) {
-        console.error('[ContinuousWorkEngine] Error in loop:', error);
+        this.consecutiveErrors++;
+        const backoff = this.getBackoffDelay();
+        console.error(
+          `[ContinuousWorkEngine] Error in loop (${this.consecutiveErrors} consecutive):`,
+          error instanceof Error ? error.message : error
+        );
+        console.log(`[ContinuousWorkEngine] Backing off ${backoff}ms before next cycle...`);
+
+        if (this.shuttingDown) break;
+        await new Promise(resolve => setTimeout(resolve, backoff));
+        continue;
       }
 
       if (this.shuttingDown) break;
-
-      await new Promise(resolve => setTimeout(resolve, this.config.pollIntervalMs));
+      await new Promise(resolve => setTimeout(resolve, this.pollIntervalMs));
     }
   }
 

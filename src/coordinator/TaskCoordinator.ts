@@ -2,6 +2,10 @@ import { TaskRouter, ExecutorType } from '../router/TaskRouter.js';
 import { PiExecutorWrapper } from '../executor/PiExecutorWrapper.js';
 import { OpenCodeSessionManager } from '../services/OpenCodeSessionManager.js';
 
+const DEFAULT_POLL_INTERVAL_MS = 5_000;
+const DEFAULT_COMPLETION_TIMEOUT_MS = 300_000;
+const IDLE_THRESHOLD_MS = 60_000;
+
 export interface TaskContext {
   id: string;
   title: string;
@@ -37,8 +41,8 @@ export class TaskCoordinator {
       usePi: config.usePi ?? false,
       ...config,
     };
-    this.pollInterval = config.pollIntervalMs ?? 5000;
-    this.completionTimeout = config.completionTimeoutMs ?? 300000;
+    this.pollInterval = config.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
+    this.completionTimeout = config.completionTimeoutMs ?? DEFAULT_COMPLETION_TIMEOUT_MS;
 
     this.sessionManager = OpenCodeSessionManager.create({
       opencodeUrl: config.opencodeUrl,
@@ -128,7 +132,7 @@ export class TaskCoordinator {
         } else if (hadActivity && lastUpdate) {
           const idleTime = Date.now() - lastUpdate;
 
-          if (idleTime > 60000) {
+          if (idleTime > IDLE_THRESHOLD_MS) {
             if (!hadActivity || (additions === 0 && deletions === 0 && files === 0)) {
               console.log(
                 `[TaskCoordinator] VERIFICATION FAILED: No actual changes made - possible fake completion`
