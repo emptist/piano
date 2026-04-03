@@ -30,37 +30,32 @@ export default function pianoAutoWork(pi: any): void {
   const DELEGATE_ALL = process.env.PIANO_DELEGATE_ALL !== 'false';
 
   pi.on('session_start', async () => {
-    console.log('[Piano] Ready. Type /piano-start to delegate, /piano-tasks to view tasks.');
+    console.log('[Piano] Ready. /piano-start to delegate, /piano-tasks for tasks.');
   });
 
   pi.registerCommand('piano-start', {
-    description: 'Delegate work to Nezha/OpenCode and stay quiet',
+    description: 'Delegate work to Nezha/OpenCode (fast)',
     handler: async () => {
       if (!DELEGATE_ALL) {
         pi.sendUserMessage(
-          'Autonomous mode: run /piano-tasks to see tasks, then execute them.',
+          'Autonomous mode: run /piano-tasks to see tasks.',
           { deliverAs: 'steer' }
         );
         return 'Piano auto-work started.';
       }
 
-      console.log('[Piano] Delegating to Nezha/OpenCode...');
-
-      const tasks = runNezha('tasks --status PENDING');
-      if (tasks.includes('[nezha error]') || tasks.includes('(no output)')) {
-        console.error(`[Piano] Nezha error:\n${tasks}`);
-        return '[Piano] Error fetching tasks.';
-      }
+      console.log('[Piano] Triggering improvement cycle...');
 
       const improve = runNezha('continuous-improvement');
       if (improve.includes('[nezha error]')) {
         console.error(`[Piano] Nezha error:\n${improve}`);
+        return '[Piano] Error triggering improvement cycle.';
       }
 
-      console.log('[PianO] Done. Tasks queued for OpenCode.');
+      console.log('[PianO] Done. Task queued for OpenCode.');
 
       pi.sendUserMessage(
-        'Delegation complete. Say only "Done." and nothing else. Do not read files, run commands, or do anything else.',
+        'Done. Say "Done." and stop.',
         { deliverAs: 'steer' }
       );
 
@@ -69,13 +64,14 @@ export default function pianoAutoWork(pi: any): void {
   });
 
   pi.registerCommand('piano-tasks', {
-    description: 'Show pending Nezha tasks',
+    description: 'Show pending Nezha tasks (slow: ~30s)',
     handler: async () => {
+      console.log('[Piano] Fetching tasks (this takes ~30s)...');
       const tasks = runNezha('tasks --status PENDING');
       console.log(tasks);
-      return tasks;
+      return tasks.substring(0, 500);
     },
   });
 
-  console.log('[Piano] Loaded. Commands: /piano-start, /piano-tasks');
+  console.log('[Piano] Loaded. /piano-start (fast), /piano-tasks (slow)');
 }
