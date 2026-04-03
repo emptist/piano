@@ -32,7 +32,7 @@ EOF
 }
 
 run_piano() {
-    local PI_ARGS=("-i" "--no-extensions" "-e" "$PIANO_EXT" "-e" "$PIANO_AUTOWORK")
+    local PI_ARGS=("--no-extensions" "-e" "$PIANO_EXT" "-e" "$PIANO_AUTOWORK")
 
     if [ -t 1 ]; then
         exec pi "${PI_ARGS[@]}" "$@"
