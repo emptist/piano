@@ -71,8 +71,8 @@ run_piano_print() {
     echo "[Piano] Using nezha: $NEZHA_BIN"
 
     echo ""
-    echo "=== TASKS ==="
-    node "$NEZHA_BIN" list-tasks 2>&1 || true
+    echo "=== PENDING TASKS ==="
+    node "$NEZHA_BIN" tasks --status PENDING 2>&1 || true
 
     echo ""
     echo "=== TRIGGERING IMPROVEMENT CYCLE ==="

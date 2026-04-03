@@ -76,7 +76,7 @@ export default function pianoAutoWork(pi: any): void {
 function startDelegatedCycle(): string {
   console.log('[Piano] Delegating to Nezha/OpenCode (delegateAll mode)...');
 
-  const tasks = runNezha('list-tasks');
+  const tasks = runNezha('tasks --status PENDING');
   if (tasks.includes('[nezha error]') || tasks.includes('(no output)')) {
     return `[Piano] Could not fetch tasks:\n${tasks}`;
   }
