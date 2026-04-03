@@ -36,48 +36,54 @@ async function checkApi(): Promise<boolean> {
   return apiHealthy;
 }
 
+async function delegateToNezha(pi: any): Promise<string> {
+  if (apiHealthy === false) {
+    console.log('[Piano] Nezha API offline. Run: nezha start');
+    return '[Piano] Nezha API not available. Run "nezha start" first.';
+  }
+
+  const result = await apiPost('tasks', {
+    title: 'Continuous Improvement Cycle',
+    description: 'Review codebase, find issues, create improvement tasks. PDCA cycle.',
+    priority: 10,
+    category: 'bugfix',
+    type: 'implementation',
+  });
+
+  if (result.error || !result.id) {
+    apiHealthy = false;
+    console.error(`[Piano] Error: ${result.error || 'no task ID'}`);
+    return `[Piano] Error: ${result.error || 'failed'} (is nezha running?)`;
+  }
+
+  console.log(`[PianO] Done. Task ${result.id.slice(0,8)}... queued.`);
+  pi.sendUserMessage('Done. Say "Done." and stop.', { deliverAs: 'steer' });
+  return 'Done.';
+}
+
 export default function pianoAutoWork(pi: any): void {
   const DELEGATE_ALL = process.env.PIANO_DELEGATE_ALL !== 'false';
 
   pi.on('session_start', async () => {
     const healthy = await checkApi();
-    console.log(`[Piano] Ready. /piano-start to delegate${healthy ? ' (via API)' : ' (API offline, need: nezha start)'}.`);
+
+    if (!DELEGATE_ALL) {
+      console.log('[Piano] Autonomous mode. /piano-start to delegate, /piano-tasks for tasks.');
+      return;
+    }
+
+    if (!healthy) {
+      console.log('[Piano] API offline. /piano-start to retry, or run: nezha start');
+      return;
+    }
+
+    console.log('[Piano] Auto-delegating to Nezha/OpenCode...');
+    await delegateToNezha(pi);
   });
 
   pi.registerCommand('piano-start', {
     description: 'Delegate work to Nezha/OpenCode',
-    handler: async () => {
-      if (!DELEGATE_ALL) {
-        pi.sendUserMessage('Autonomous mode: run /piano-tasks.', { deliverAs: 'steer' });
-        return 'Piano auto-work started.';
-      }
-
-      if (apiHealthy === false) {
-        console.log('[Piano] Nezha API offline. Run: nezha start');
-        return '[Piano] Nezha API not available. Run "nezha start" first.';
-      }
-
-      console.log('[Piano] Triggering improvement cycle...');
-
-      const result = await apiPost('tasks', {
-        title: 'Continuous Improvement Cycle',
-        description: 'Review codebase, find issues, create improvement tasks. PDCA cycle.',
-        priority: 10,
-        category: 'bugfix',
-        type: 'implementation',
-      });
-
-      if (result.error || !result.id) {
-        apiHealthy = false;
-        console.error(`[Piano] Error: ${result.error || 'no task ID'}`);
-        return `[Piano] Error: ${result.error || 'failed'} (is nezha running?)`;
-      }
-
-      console.log(`[PianO] Done. Task ${result.id.slice(0,8)}... queued.`);
-
-      pi.sendUserMessage('Done. Say "Done." and stop.', { deliverAs: 'steer' });
-      return 'Done.';
-    },
+    handler: async () => delegateToNezha(pi),
   });
 
   pi.registerCommand('piano-tasks', {
@@ -86,20 +92,16 @@ export default function pianoAutoWork(pi: any): void {
       if (apiHealthy === false) {
         return '[Piano] Nezha API offline. Run "nezha start" to enable.';
       }
-
       const result = await apiGet('tasks?status=PENDING&limit=3');
       if (result.error) {
         apiHealthy = false;
         return `[Piano] API error: ${result.error}. Try: nezha start`;
       }
-
       const tasks = result.data as Array<{ title: string; priority: number }>;
       const lines = tasks.map(t => `  [P${t.priority}] ${t.title}`).join('\n') || '  (no pending tasks)';
-      const msg = `[Piano] Pending:\n${lines}`;
-      console.log(msg);
-      return msg;
+      return `[Piano] Pending:\n${lines}`;
     },
   });
 
-  console.log('[Piano] Loaded. /piano-start, /piano-tasks');
+  console.log('[Piano] Loaded. Auto-delegates on start. /piano-tasks for status.');
 }
