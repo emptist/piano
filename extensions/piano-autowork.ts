@@ -39,7 +39,7 @@ export default function pianoAutoWork(pi: any): void {
   const DELEGATE_ALL = process.env.PIANO_DELEGATE_ALL !== 'false';
 
   pi.on('session_start', async () => {
-    console.log('[Piano] Auto-work mode ready. Type "piano-start" to begin!');
+    console.log('[Piano] Auto-work mode ready. Type /piano-start to begin!');
   });
 
   pi.registerCommand('piano-work', {
@@ -70,7 +70,7 @@ export default function pianoAutoWork(pi: any): void {
     },
   });
 
-  console.log('[Piano] Auto-work extension loaded. Use "piano-start" to begin!');
+  console.log('[Piano] Auto-work extension loaded. Use /piano-start to begin!');
 }
 
 function startDelegatedCycle(): string {
