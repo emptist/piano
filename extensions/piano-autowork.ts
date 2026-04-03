@@ -1,12 +1,3 @@
-/**
- * Piano Auto-Work Extension for Pi
- *
- * Provides Piano autonomous work mode:
- * 1. Auto-checks pending tasks on startup
- * 2. Proactively finds work when idle
- * 3. Doesn't ask humans, just works
- */
-
 import { execSync } from 'child_process';
 
 const NEZHA_PATH = process.env.NEZHA_BIN || (() => {
@@ -39,51 +30,52 @@ export default function pianoAutoWork(pi: any): void {
   const DELEGATE_ALL = process.env.PIANO_DELEGATE_ALL !== 'false';
 
   pi.on('session_start', async () => {
-    console.log('[Piano] Auto-work mode ready. Type /piano-start to begin!');
-  });
-
-  pi.registerCommand('piano-work', {
-    description: 'Start Piano autonomous work mode',
-    handler: async () => {
-      if (DELEGATE_ALL) {
-        return startDelegatedCycle();
-      }
-      pi.sendUserMessage(
-        'You are in autonomous work mode. Run: piano-tasks to see pending tasks, then execute them.',
-        { deliverAs: 'steer' }
-      );
-      return 'Piano auto-work started!';
-    },
+    console.log('[Piano] Ready. Type /piano-start to delegate, /piano-tasks to view tasks.');
   });
 
   pi.registerCommand('piano-start', {
-    description: 'Start Piano continuous work cycle',
+    description: 'Delegate work to Nezha/OpenCode and stay quiet',
     handler: async () => {
-      if (DELEGATE_ALL) {
-        return startDelegatedCycle();
+      if (!DELEGATE_ALL) {
+        pi.sendUserMessage(
+          'Autonomous mode: run /piano-tasks to see tasks, then execute them.',
+          { deliverAs: 'steer' }
+        );
+        return 'Piano auto-work started.';
       }
+
+      console.log('[Piano] Delegating to Nezha/OpenCode...');
+
+      const tasks = runNezha('tasks --status PENDING');
+      if (tasks.includes('[nezha error]') || tasks.includes('(no output)')) {
+        console.error(`[Piano] Nezha error:\n${tasks}`);
+        return '[Piano] Error fetching tasks.';
+      }
+
+      const improve = runNezha('continuous-improvement');
+      if (improve.includes('[nezha error]')) {
+        console.error(`[Piano] Nezha error:\n${improve}`);
+      }
+
+      console.log('[PianO] Done. Tasks queued for OpenCode.');
+
       pi.sendUserMessage(
-        'You are in autonomous work mode. Run: piano-tasks to see pending tasks, then execute them.',
+        'Delegation complete. Say only "Done." and nothing else. Do not read files, run commands, or do anything else.',
         { deliverAs: 'steer' }
       );
-      return 'Piano autonomous work mode started!';
+
+      return 'Done.';
     },
   });
 
-  console.log('[Piano] Auto-work extension loaded. Use /piano-start to begin!');
-}
+  pi.registerCommand('piano-tasks', {
+    description: 'Show pending Nezha tasks',
+    handler: async () => {
+      const tasks = runNezha('tasks --status PENDING');
+      console.log(tasks);
+      return tasks;
+    },
+  });
 
-function startDelegatedCycle(): string {
-  console.log('[Piano] Delegating to Nezha/OpenCode (delegateAll mode)...');
-
-  const tasks = runNezha('tasks --status PENDING');
-  if (tasks.includes('[nezha error]') || tasks.includes('(no output)')) {
-    console.error(`[Piano] Could not fetch tasks:\n${tasks}`);
-    return '[Piano] Error fetching tasks from Nezha.';
-  }
-
-  const improve = runNezha('continuous-improvement');
-
-  console.log(`[PianO] Delegation complete.`);
-  return 'Delegation done. Tasks are in Nezha queue for OpenCode.';
+  console.log('[Piano] Loaded. Commands: /piano-start, /piano-tasks');
 }
