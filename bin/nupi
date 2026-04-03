@@ -40,12 +40,12 @@ EOF
 
 run_nupi() {
     echo "🟡 启动 NuPI 模式..."
-    pi -i --no-extensions -e "$NUPI_EXT" "$@"
+    pi --no-extensions -e "$NUPI_EXT" "$@"
 }
 
 run_piano() {
     echo "🎹 启动 Piano 模式..."
-    pi -i --no-extensions -e "$PIANO_EXT" "$@"
+    pi --no-extensions -e "$PIANO_EXT" "$@"
 }
 
 case "${1:-}" in
