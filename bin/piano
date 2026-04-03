@@ -1,16 +1,12 @@
 #!/bin/bash
-# Piano Launcher - 多种启动方式
-# 
-# 用法:
-#   piano              # 启动 Piano 模式 (默认)
-#   piano -p           # 同上，short flag
-#   piano --piano      # 同上，long flag
-#   piano nupi        # 启动 NuPI 模式
-#   piano --help      # 显示帮助
+# Piano Launcher
+#
+# Usage:
+#   piano              Start Piano interactive mode (default)
+#   piano --print      Non-interactive delegation mode (no AI needed)
+#   piano nupi         Start NuPI mode
+#   piano --help       Show help
 
-set -e
-
-# 解析脚本的真实路径（处理 symlink）
 SOURCE="${BASH_SOURCE[0]}"
 while [ -L "$SOURCE" ]; do
     DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
@@ -23,19 +19,14 @@ PIANO_EXT="$SCRIPT_DIR/../extensions/piano-tools.ts"
 NUPI_EXT="$HOME/.pi/agent/extensions/nupi-tools.ts"
 
 show_help() {
-    cat << EOF
-Piano Launcher - 自主工作 AI 启动器
+    cat <<EOF
+Piano Launcher
 
-用法:
-    piano              启动 Piano 模式
-    piano -p, --piano  启动 Piano 模式 (short/long flag)
-    piano nupi         启动 NuPI 模式
-    piano --help       显示帮助
-
-示例:
-    piano              # 启动 Piano 自动工作
-    piano --piano      # 同上
-    piano nupi         # 启动 NuPI
+Usage:
+    piano              Start Piano mode
+    piano --print      Non-interactive delegation (bypasses Pi)
+    piano nupi         Start NuPI mode
+    piano --help       Show this help
 EOF
 }
 
@@ -43,15 +34,14 @@ run_piano() {
     local PI_ARGS=("-i" "--no-extensions" "-e" "$PIANO_EXT")
 
     if [ -t 1 ]; then
-        pi "${PI_ARGS[@]}" "$@"
+        exec pi "${PI_ARGS[@]}" "$@"
     else
-        echo "[Piano] No TTY detected on stdout. Pi needs interactive mode." >&2
-        echo "[Piano] Trying with script (pseudo-TTY)..." >&2
+        echo "[Piano] No TTY on stdout. Trying pseudo-TTY..." >&2
         if command -v script &>/dev/null; then
-            script -q /dev/null pi "${PI_ARGS[@]}" "$@"
+            exec script -q /dev/null pi "${PI_ARGS[@]}" "$@"
         else
-            echo "[Piano] Error: Cannot start Pi interactively without a TTY." >&2
-            echo "[Piano] Run 'piano' from a real terminal, or use: piano --print" >&2
+            echo "[Piano] No TTY and no 'script' command available." >&2
+            echo "[Piano] Run from a real terminal, or use: piano --print" >&2
             return 1
         fi
     fi
@@ -61,11 +51,16 @@ run_piano_print() {
     echo "[Piano] Non-interactive delegation mode..."
 
     local NEZHA_BIN
-    NEZHA_BIN="$(command -v nezha 2>/dev/null || echo /opt/homebrew/bin/nezha)"
-    if [ ! -f "$NEZHA_BIN" ]; then
+    NEZHA_BIN="$(command -v nezha 2>/dev/null || true)"
+    if [ -z "$NEZHA_BIN" ] || [ ! -f "$NEZHA_BIN" ]; then
         for c in /opt/homebrew/bin/nezha /usr/local/bin/nezha; do
             [ -f "$c" ] && NEZHA_BIN="$c" && break
         done
+    fi
+
+    if [ -z "$NEZHA_BIN" ] || [ ! -f "$NEZHA_BIN" ]; then
+        echo "[Piano] Error: nezha not found." >&2
+        return 1
     fi
 
     echo "[Piano] Using nezha: $NEZHA_BIN"
@@ -83,11 +78,10 @@ run_piano_print() {
 }
 
 run_nupi() {
-    echo "🟡 启动 NuPI 模式..."
-    pi --no-extensions -e "$NUPI_EXT" "$@"
+    echo "[Piano] Starting NuPI mode..."
+    exec pi --no-extensions -e "$NUPI_EXT" "$@"
 }
 
-# 解析参数
 case "${1:-}" in
     -p|--piano|"")
         shift
@@ -105,7 +99,7 @@ case "${1:-}" in
         show_help
         ;;
     *)
-        echo "未知选项: $1"
+        echo "Unknown option: $1"
         show_help
         exit 1
         ;;
