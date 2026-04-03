@@ -49,33 +49,46 @@ run_piano() {
 }
 
 run_piano_print() {
-    echo "[Piano] Delegating to Nezha/OpenCode..."
+    local API="http://127.0.0.1:4099"
 
-    local NEZHA_BIN
-    NEZHA_BIN="$(command -v nezha 2>/dev/null || true)"
-    if [ -z "$NEZHA_BIN" ] || [ ! -f "$NEZHA_BIN" ]; then
-        for c in /opt/homebrew/bin/nezha /usr/local/bin/nezha; do
-            [ -f "$c" ] && NEZHA_BIN="$c" && break
-        done
-    fi
+    echo "[Piano] Delegating to Nezha/OpenCode via API..."
 
-    if [ -z "$NEZHA_BIN" ] || [ ! -f "$NEZHA_BIN" ]; then
-        echo "[Piano] Error: nezha not found." >&2
+    if ! curl -s --max-time 3 "$API/health" >/dev/null 2>&1; then
+        echo "[Piano] Error: Nezha API not responding at $API" >&2
+        echo "[Piano] Run 'nezha start' first, then try again." >&2
         return 1
     fi
 
-    echo "[Piano] Using nezha: $NEZHA_BIN"
-
     echo ""
-    echo "=== PENDING TASKS ==="
-    node "$NEZHA_BIN" tasks --status PENDING 2>&1 || true
+    echo "=== PENDING TASKS (sample) ==="
+    curl -s --max-time 5 "$API/tasks?status=PENDING&limit=5" | python3 -c "
+import sys,json
+try:
+    tasks=json.load(sys.stdin)
+    if not tasks: print('  (no pending tasks)'); sys.exit()
+    for t in tasks[:5]: print(f\"  [{t.get('priority','?')}] {t.get('title','?')}\")
+    if len(tasks)>5: print(f'  ... and {len(tasks)-5} more')
+except: print('  (error parsing response)')
+" 2>&1
 
     echo ""
     echo "=== TRIGGERING IMPROVEMENT CYCLE ==="
-    node "$NEZHA_BIN" continuous-improvement 2>&1 || true
+    local RESULT
+    RESULT=$(curl -s --max-time 5 -X POST "$API/tasks" \
+        -H 'Content-Type: application/json' \
+        -d '{"title":"Continuous Improvement Cycle","description":"Review codebase, find issues, create improvement tasks. PDCA.","priority":10,"category":"bugfix"}' \
+        2>&1)
+
+    if echo "$RESULT" | grep -q '"id"'; then
+        local TASK_ID
+        TASK_ID=$(echo "$RESULT" | python3 -c "import sys,json;print(json.load(sys.stdin).get('id','?')[:8])")
+        echo "[PianO] Done. Task $TASK_ID... queued for OpenCode."
+    else
+        echo "[Piano] Warning: $RESULT"
+    fi
 
     echo ""
-    echo "[PianO] Done. Tasks queued for OpenCode."
+    echo "[Piano] Done."
 }
 
 run_nupi() {
