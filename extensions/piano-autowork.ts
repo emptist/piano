@@ -78,19 +78,12 @@ function startDelegatedCycle(): string {
 
   const tasks = runNezha('tasks --status PENDING');
   if (tasks.includes('[nezha error]') || tasks.includes('(no output)')) {
-    return `[Piano] Could not fetch tasks:\n${tasks}`;
+    console.error(`[Piano] Could not fetch tasks:\n${tasks}`);
+    return '[Piano] Error fetching tasks from Nezha.';
   }
 
   const improve = runNezha('continuous-improvement');
 
-  return `[Piano] Delegation cycle triggered:
-
-TASKS:
-${tasks}
-
-IMPROVE:
-${improve}
-
-Tasks are now in Nezha queue. OpenCode will pick them up.
-Run "piano-start" again to check progress or add more work.`;
+  console.log(`[PianO] Delegation complete.`);
+  return 'Delegation done. Tasks are in Nezha queue for OpenCode.';
 }
