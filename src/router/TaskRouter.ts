@@ -8,6 +8,7 @@ export interface TaskRouterConfig {
   usePi: boolean;
   complexityThreshold: number;
   selfCapability: AICapability;
+  delegateAll: boolean;
 }
 
 export class TaskRouter {
@@ -19,6 +20,7 @@ export class TaskRouter {
       usePi: config.usePi ?? false,
       complexityThreshold: config.complexityThreshold ?? 50,
       selfCapability: config.selfCapability ?? "internal",
+      delegateAll: config.delegateAll ?? true,
     };
   }
 
@@ -44,6 +46,10 @@ export class TaskRouter {
   ): ExecutorType {
     if (delegateTo && delegateTo !== this.config.selfCapability) {
       return this.executorForCapability(delegateTo);
+    }
+
+    if (this.config.delegateAll && this.config.useOpenCode) {
+      return "opencode";
     }
 
     if (priority >= 50 && this.config.useOpenCode) {
