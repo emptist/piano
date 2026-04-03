@@ -1,6 +1,6 @@
-import { randomUUID } from 'crypto';
-
 const NEZHA_API = 'http://127.0.0.1:4099';
+const MAX_RETRIES = 6;
+const RETRY_DELAY_MS = 5000;
 
 async function apiPost(path: string, body: Record<string, unknown>): Promise<{ id?: string; error?: string }> {
   try {
@@ -30,15 +30,27 @@ async function apiGet(path: string): Promise<{ error?: string; data?: unknown }>
 
 let apiHealthy: boolean | null = null;
 
-async function checkApi(): Promise<boolean> {
-  const result = await apiGet('health');
-  apiHealthy = !result.error;
-  return apiHealthy;
+async function waitForApi(attempts: number = MAX_RETRIES): Promise<boolean> {
+  for (let i = 1; i <= attempts; i++) {
+    console.log(`[Piano] Checking Nezha API... (${i}/${attempts})`);
+    const result = await apiGet('health');
+    if (!result.error) {
+      apiHealthy = true;
+      console.log('[Piano] Nezha API is online.');
+      return true;
+    }
+    apiHealthy = false;
+    if (i < attempts) {
+      console.log(`[Piano] Not responding. Retrying in ${RETRY_DELAY_MS / 1000}s...`);
+      await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
+    }
+  }
+  console.log(`[Piano] Nezha API did not respond after ${attempts} attempts.`);
+  return false;
 }
 
 async function delegateToNezha(pi: any): Promise<string> {
-  if (apiHealthy === false) {
-    console.log('[Piano] Nezha API offline. Run: nezha start');
+  if (apiHealthy === false && !(await waitForApi(2))) {
     return '[Piano] Nezha API not available. Run "nezha start" first.';
   }
 
@@ -65,15 +77,16 @@ export default function pianoAutoWork(pi: any): void {
   const DELEGATE_ALL = process.env.PIANO_DELEGATE_ALL !== 'false';
 
   pi.on('session_start', async () => {
-    const healthy = await checkApi();
-
     if (!DELEGATE_ALL) {
       console.log('[Piano] Autonomous mode. /piano-start to delegate, /piano-tasks for tasks.');
       return;
     }
 
+    console.log('[Piano] Connecting to Nezha...');
+    const healthy = await waitForApi(MAX_RETRIES);
+
     if (!healthy) {
-      console.log('[Piano] API offline. /piano-start to retry, or run: nezha start');
+      console.log('[Piano] Could not reach Nezha. /piano-start to retry later.');
       return;
     }
 
@@ -82,7 +95,7 @@ export default function pianoAutoWork(pi: any): void {
   });
 
   pi.registerCommand('piano-start', {
-    description: 'Delegate work to Nezha/OpenCode',
+    description: 'Delegate work to Nezha/OpenCode (with retry)',
     handler: async () => delegateToNezha(pi),
   });
 
@@ -90,7 +103,8 @@ export default function pianoAutoWork(pi: any): void {
     description: 'Show pending tasks or API status',
     handler: async () => {
       if (apiHealthy === false) {
-        return '[Piano] Nezha API offline. Run "nezha start" to enable.';
+        const ok = await waitForApi(2);
+        if (!ok) return '[Piano] Nezha API offline. Run "nezha start" to enable.';
       }
       const result = await apiGet('tasks?status=PENDING&limit=3');
       if (result.error) {
