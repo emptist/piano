@@ -1,77 +1,105 @@
-import { execSync } from 'child_process';
+import { randomUUID } from 'crypto';
 
-const NEZHA_PATH = process.env.NEZHA_BIN || (() => {
-  try {
-    return execSync('which nezha', { encoding: 'utf-8' }).trim();
-  } catch {
-    return 'nezha';
-  }
-})();
+const NEZHA_API = 'http://127.0.0.1:4099';
 
-function runNezha(command: string): string {
+async function apiPost(path: string, body: Record<string, unknown>): Promise<{ id?: string; error?: string }> {
   try {
-    const result = execSync(`node ${NEZHA_PATH} ${command}`, {
-      encoding: 'utf-8',
-      maxBuffer: 1024 * 1024,
-      timeout: 60000,
-      stdio: ['pipe', 'pipe', 'pipe'],
-    }).trim();
-    if (!result) return '(no output)';
-    return result;
+    const res = await fetch(`${NEZHA_API}/${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) return { error: `HTTP ${res.status}` };
+    return await res.json() as { id?: string; error?: string };
   } catch (e: unknown) {
-    const err = e as { stdout?: string; stderr?: string; message?: string; status?: number };
-    const output = (err.stdout || '') + (err.stderr || '');
-    if (output.trim()) return `[nezha error:${err.status ?? '?'}] ${output.trim()}`;
-    return `[nezha error] ${err.message || String(e)}`;
+    const msg = e instanceof Error ? e.message : String(e);
+    return { error: msg };
   }
+}
+
+async function apiGet(path: string): Promise<{ error?: string; data?: unknown }> {
+  try {
+    const res = await fetch(`${NEZHA_API}/${path}`, { signal: AbortSignal.timeout(5000) });
+    if (!res.ok) return { error: `HTTP ${res.status}` };
+    return { data: await res.json() };
+  } catch (e: unknown) {
+    return { error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+let apiHealthy: boolean | null = null;
+
+async function checkApi(): Promise<boolean> {
+  const result = await apiGet('health');
+  apiHealthy = !result.error;
+  return apiHealthy;
 }
 
 export default function pianoAutoWork(pi: any): void {
   const DELEGATE_ALL = process.env.PIANO_DELEGATE_ALL !== 'false';
 
   pi.on('session_start', async () => {
-    console.log('[Piano] Ready. /piano-start to delegate, /piano-tasks for tasks.');
+    const healthy = await checkApi();
+    console.log(`[Piano] Ready. /piano-start to delegate${healthy ? ' (via API)' : ' (API offline, need: nezha start)'}.`);
   });
 
   pi.registerCommand('piano-start', {
-    description: 'Delegate work to Nezha/OpenCode (fast)',
+    description: 'Delegate work to Nezha/OpenCode',
     handler: async () => {
       if (!DELEGATE_ALL) {
-        pi.sendUserMessage(
-          'Autonomous mode: run /piano-tasks to see tasks.',
-          { deliverAs: 'steer' }
-        );
+        pi.sendUserMessage('Autonomous mode: run /piano-tasks.', { deliverAs: 'steer' });
         return 'Piano auto-work started.';
+      }
+
+      if (apiHealthy === false) {
+        console.log('[Piano] Nezha API offline. Run: nezha start');
+        return '[Piano] Nezha API not available. Run "nezha start" first.';
       }
 
       console.log('[Piano] Triggering improvement cycle...');
 
-      const improve = runNezha('continuous-improvement');
-      if (improve.includes('[nezha error]')) {
-        console.error(`[Piano] Nezha error:\n${improve}`);
-        return '[Piano] Error triggering improvement cycle.';
+      const result = await apiPost('tasks', {
+        title: 'Continuous Improvement Cycle',
+        description: 'Review codebase, find issues, create improvement tasks. PDCA cycle.',
+        priority: 10,
+        category: 'bugfix',
+        type: 'implementation',
+      });
+
+      if (result.error || !result.id) {
+        apiHealthy = false;
+        console.error(`[Piano] Error: ${result.error || 'no task ID'}`);
+        return `[Piano] Error: ${result.error || 'failed'} (is nezha running?)`;
       }
 
-      console.log('[PianO] Done. Task queued for OpenCode.');
+      console.log(`[PianO] Done. Task ${result.id.slice(0,8)}... queued.`);
 
-      pi.sendUserMessage(
-        'Done. Say "Done." and stop.',
-        { deliverAs: 'steer' }
-      );
-
+      pi.sendUserMessage('Done. Say "Done." and stop.', { deliverAs: 'steer' });
       return 'Done.';
     },
   });
 
   pi.registerCommand('piano-tasks', {
-    description: 'Show pending Nezha tasks (slow: ~30s)',
+    description: 'Show pending tasks or API status',
     handler: async () => {
-      console.log('[Piano] Fetching tasks (this takes ~30s)...');
-      const tasks = runNezha('tasks --status PENDING');
-      console.log(tasks);
-      return tasks.substring(0, 500);
+      if (apiHealthy === false) {
+        return '[Piano] Nezha API offline. Run "nezha start" to enable.';
+      }
+
+      const result = await apiGet('tasks?status=PENDING&limit=3');
+      if (result.error) {
+        apiHealthy = false;
+        return `[Piano] API error: ${result.error}. Try: nezha start`;
+      }
+
+      const tasks = result.data as Array<{ title: string; priority: number }>;
+      const lines = tasks.map(t => `  [P${t.priority}] ${t.title}`).join('\n') || '  (no pending tasks)';
+      const msg = `[Piano] Pending:\n${lines}`;
+      console.log(msg);
+      return msg;
     },
   });
 
-  console.log('[Piano] Loaded. /piano-start (fast), /piano-tasks (slow)');
+  console.log('[Piano] Loaded. /piano-start, /piano-tasks');
 }
