@@ -40,7 +40,46 @@ EOF
 }
 
 run_piano() {
-    pi -i --no-extensions -e "$PIANO_EXT"
+    local PI_ARGS=("-i" "--no-extensions" "-e" "$PIANO_EXT")
+
+    if [ -t 1 ]; then
+        pi "${PI_ARGS[@]}" "$@"
+    else
+        echo "[Piano] No TTY detected on stdout. Pi needs interactive mode." >&2
+        echo "[Piano] Trying with script (pseudo-TTY)..." >&2
+        if command -v script &>/dev/null; then
+            script -q /dev/null pi "${PI_ARGS[@]}" "$@"
+        else
+            echo "[Piano] Error: Cannot start Pi interactively without a TTY." >&2
+            echo "[Piano] Run 'piano' from a real terminal, or use: piano --print" >&2
+            return 1
+        fi
+    fi
+}
+
+run_piano_print() {
+    echo "[Piano] Non-interactive delegation mode..."
+
+    local NEZHA_BIN
+    NEZHA_BIN="$(command -v nezha 2>/dev/null || echo /opt/homebrew/bin/nezha)"
+    if [ ! -f "$NEZHA_BIN" ]; then
+        for c in /opt/homebrew/bin/nezha /usr/local/bin/nezha; do
+            [ -f "$c" ] && NEZHA_BIN="$c" && break
+        done
+    fi
+
+    echo "[Piano] Using nezha: $NEZHA_BIN"
+
+    echo ""
+    echo "=== TASKS ==="
+    node "$NEZHA_BIN" list-tasks 2>&1 || true
+
+    echo ""
+    echo "=== TRIGGERING IMPROVEMENT CYCLE ==="
+    node "$NEZHA_BIN" continuous-improvement 2>&1 || true
+
+    echo ""
+    echo "[Piano] Done. Tasks queued for OpenCode."
 }
 
 run_nupi() {
@@ -53,6 +92,10 @@ case "${1:-}" in
     -p|--piano|"")
         shift
         run_piano "$@"
+        ;;
+    --print)
+        shift
+        run_piano_print "$@"
         ;;
     nupi)
         shift
