@@ -1,5 +1,5 @@
 import { TaskCoordinator, TaskContext } from '../coordinator/TaskCoordinator.js';
-import { Pool } from 'pg';
+import { getNuPIClient } from '@nezha/nupi';
 
 const DEFAULT_POLL_INTERVAL_MS = 10_000;
 const HEARTBEAT_EVERY_N_CYCLES = 12;
@@ -10,7 +10,6 @@ const MAX_TITLE_LENGTH = 500;
 const MAX_RESULT_LENGTH = 10_000;
 
 export interface EngineConfig {
-  dbPool: Pool;
   opencodeUrl: string;
   opencodeAuth?: { username: string; password: string };
   pollIntervalMs?: number;
@@ -26,7 +25,7 @@ function sanitizeForSql(value: string, maxLength: number): string {
 export class ContinuousWorkEngine {
   private coordinator: TaskCoordinator;
   private config: EngineConfig;
-  private pool: Pool;
+  private api = getNuPIClient();
   private running = false;
   private shuttingDown = false;
   private currentTaskPromise: Promise<void> | null = null;
@@ -40,7 +39,6 @@ export class ContinuousWorkEngine {
       useAuth: config.useAuth,
     });
     this.config = config;
-    this.pool = config.dbPool;
     this.pollIntervalMs = config.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
   }
 
@@ -100,21 +98,22 @@ export class ContinuousWorkEngine {
     if (resultText.includes('error') || resultText.includes('fail')) {
       const safeTitle = sanitizeForSql(task.title, MAX_TITLE_LENGTH);
       const safeResult = sanitizeForSql(result.result, MAX_RESULT_LENGTH);
-      await this.pool.query(
-        `INSERT INTO tasks (title, description, priority) VALUES ($1, $2, $3)`,
-        [`修复: ${safeTitle}`, `执行失败: ${safeResult}`, task.priority + 10]
-      );
+      await this.api.createTask({
+        title: `修复: ${safeTitle}`,
+        description: `执行失败: ${safeResult}`,
+        priority: task.priority + 10,
+      });
     }
 
     if (resultText.includes('todo') || resultText.includes('后续')) {
       const match = resultText.match(/todo[:\s]+(.+?)(?:\n|$)/i);
       if (match?.[1]) {
         const safeTodo = sanitizeForSql(match[1].trim(), MAX_TITLE_LENGTH);
-        const safeTitle = sanitizeForSql(task.title, MAX_TITLE_LENGTH);
-        await this.pool.query(
-          `INSERT INTO tasks (title, description, priority) VALUES ($1, $2, $3)`,
-          [safeTodo, `从任务 ${safeTitle} 分解`, task.priority]
-        );
+        await this.api.createTask({
+          title: safeTodo,
+          description: `从任务 ${sanitizeForSql(task.title, MAX_TITLE_LENGTH)} 分解`,
+          priority: task.priority,
+        });
       }
     }
   }
@@ -168,72 +167,48 @@ export class ContinuousWorkEngine {
 
     console.log(`[ContinuousWorkEngine] Processing task: ${task.title}`);
 
-    await this.updateTaskStatus(task.id, 'RUNNING');
+    await this.api.updateTaskStatus(task.id, 'RUNNING');
 
     try {
       const result = await this.coordinator.execute(task);
 
       await this.saveLearning(task, result);
-      await this.updateTaskResult(task.id, result);
-      await this.updateTaskStatus(task.id, 'COMPLETED');
+      await this.api.updateTaskResult(task.id, result);
+      await this.api.updateTaskStatus(task.id, 'COMPLETED');
       await this.analyzeResultAndCreateTasks(task, result);
 
       console.log(`[ContinuousWorkEngine] Task completed: ${task.title}`);
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      await this.updateTaskError(task.id, errorMsg);
-      await this.updateTaskStatus(task.id, 'FAILED');
+      await this.api.updateTaskError(task.id, errorMsg);
+      await this.api.updateTaskStatus(task.id, 'FAILED');
       console.error(`[ContinuousWorkEngine] Task failed: ${task.title}`, errorMsg);
     }
   }
 
   private async fetchNextTask(): Promise<TaskContext | null> {
-    const result = await this.pool.query(
-      `SELECT id, title, description, priority 
-       FROM tasks 
-       WHERE status = 'PENDING' 
-       ORDER BY priority DESC, created_at ASC 
-       LIMIT 1`
-    );
-
-    if (result.rows.length === 0) return null;
-
-    const row = result.rows[0];
-    return {
-      id: row.id,
-      title: row.title,
-      description: row.description,
-      priority: row.priority,
-    };
-  }
-
-  private async updateTaskStatus(id: string, status: string) {
-    await this.pool.query(`UPDATE tasks SET status = $1, updated_at = NOW() WHERE id = $2`, [
-      status,
-      id,
-    ]);
-  }
-
-  private async updateTaskResult(id: string, result: { executor: string; result: string }) {
-    await this.pool.query(`UPDATE tasks SET result = $1, completed_at = NOW() WHERE id = $2`, [
-      JSON.stringify(result),
-      id,
-    ]);
-  }
-
-  private async updateTaskError(id: string, error: string) {
-    await this.pool.query(`UPDATE tasks SET error = $1, updated_at = NOW() WHERE id = $2`, [
-      error,
-      id,
-    ]);
+    try {
+      const task = await this.api.getPendingTask(1);
+      if (!task) return null;
+      return {
+        id: task.id,
+        title: task.title,
+        description: task.description || undefined,
+        priority: task.priority,
+      };
+    } catch (error) {
+      console.error('[ContinuousWorkEngine] Failed to fetch next task:', error);
+      return null;
+    }
   }
 
   private async saveLearning(task: TaskContext, result: { executor: string; result: string }) {
     const content = `任务完成: ${task.title}\n执行器: ${result.executor}\n结果: ${result.result}`;
 
-    await this.pool.query(
-      `INSERT INTO memory (content, source, tags) VALUES ($1, 'piano-engine', $2)`,
-      [content, ['task', 'completed', task.priority >= 50 ? 'high-priority' : 'normal']]
-    );
+    try {
+      await this.api.saveMemory(content, ['task', 'completed', task.priority >= 50 ? 'high-priority' : 'normal']);
+    } catch (error) {
+      console.warn('[ContinuousWorkEngine] Failed to save learning:', error);
+    }
   }
 }

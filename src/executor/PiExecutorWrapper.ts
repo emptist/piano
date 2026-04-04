@@ -10,7 +10,7 @@ export class PiExecutorWrapper {
 
   constructor(config: PiExecutorConfig = {}) {
     this.executor = new PiExecutor({
-      model: config.model || "llama3.2:3b",
+      model: config.model || "zai:glm-4.5-flash",
     });
   }
 

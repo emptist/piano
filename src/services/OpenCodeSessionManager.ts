@@ -30,10 +30,9 @@ export class OpenCodeSessionManager {
     const defaultUrl = "http://localhost:11434";
     this.config = {
       opencodeUrl: config.opencodeUrl || defaultUrl,
-      username:
-        config.username || process.env.OPENCODE_SERVER_USERNAME || "opencode",
-      password: config.password || process.env.OPENCODE_SERVER_PASSWORD || "",
-      useAuth: config.useAuth ?? true,
+      username: config.username || process.env.OPENCODE_SERVER_USERNAME || undefined,
+      password: config.password || process.env.OPENCODE_SERVER_PASSWORD || undefined,
+      useAuth: config.useAuth ?? !!(config.username || config.password || process.env.OPENCODE_SERVER_USERNAME),
     };
 
     const dataDir = path.join(process.cwd(), ".nezha");
