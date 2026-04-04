@@ -22,7 +22,12 @@ interface CachedSession {
 export class OpenCodeSessionManager {
   private static instance: OpenCodeSessionManager | null = null;
   private sessionId: string | null = null;
-  private config: Required<OpenCodeClientConfig>;
+  private config: {
+    opencodeUrl: string;
+    username: string;
+    password: string;
+    useAuth: boolean;
+  };
   private creatingSession: Promise<string> | null = null;
   private sessionCachePath: string;
 
@@ -30,8 +35,8 @@ export class OpenCodeSessionManager {
     const defaultUrl = "http://localhost:11434";
     this.config = {
       opencodeUrl: config.opencodeUrl || defaultUrl,
-      username: config.username || process.env.OPENCODE_SERVER_USERNAME || undefined,
-      password: config.password || process.env.OPENCODE_SERVER_PASSWORD || undefined,
+      username: config.username || process.env.OPENCODE_SERVER_USERNAME || '',
+      password: config.password || process.env.OPENCODE_SERVER_PASSWORD || '',
       useAuth: config.useAuth ?? !!(config.username || config.password || process.env.OPENCODE_SERVER_USERNAME),
     };
 
