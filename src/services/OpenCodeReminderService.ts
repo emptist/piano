@@ -1,44 +1,64 @@
 /**
  * @layer integration
  * @integration OpenCode
- * @description 向 OpenCode AI 发送提醒消息，引导 AI 持续改进项目
+ * @description Send reminder messages to OpenCode AI to guide continuous improvement
  *
- * 架构说明：
- * - 这是集成层服务，不是核心功能
- * - 失败不影响 Nezha 核心功能
- * - 可以替换为其他 AI 集成（Trae、Cursor 等）
- * - 参考：docs/INTEGRATION_ARCHITECTURE.md
+ * Architecture:
+ * - Integration layer service, not core functionality
+ * - Failure does not affect Nezha core
+ * - Can be replaced with other AI integrations (Trae, Cursor, etc.)
+ * - Uses HTTP API (/status/full) instead of direct DB access
  */
-import { DatabaseClient, ReminderTemplateService, SystemStatus } from "nezha";
+import { ReminderTemplateService, SystemStatus } from "nezha";
 import { logger } from "nezha";
 import { OPENCODE_API } from "nezha";
 
+const DEFAULT_API_URL = 'http://127.0.0.1:4099';
+const STATUS_FETCH_TIMEOUT_MS = 10000;
+
 export interface OpenCodeReminderConfig {
   opencodeUrl: string;
+  apiUrl?: string;
   username?: string;
   password?: string;
   reminderIntervalMs?: number;
 }
 
+interface FullSystemStatus extends SystemStatus {
+  pendingTasks: number;
+  failedTasks: number;
+  openIssues: number;
+  recentMemories: number;
+  memoryCount: number;
+}
+
 export class OpenCodeReminderService {
-  private readonly db: DatabaseClient;
   private readonly config: Required<OpenCodeReminderConfig>;
   private readonly templateService: ReminderTemplateService;
+  private readonly apiBaseUrl: string;
   private sessionId: string | null = null;
   private timer: ReturnType<typeof setInterval> | null = null;
   private isRunning: boolean = false;
 
-  constructor(db: DatabaseClient, config: OpenCodeReminderConfig) {
-    this.db = db;
+  constructor(dbOrConfig: any, config?: OpenCodeReminderConfig) {
+    const cfg = config || (dbOrConfig as OpenCodeReminderConfig);
     const defaultUrl = `http://${OPENCODE_API.DEFAULT_HOST}:${OPENCODE_API.DEFAULT_PORT}`;
     this.config = {
-      opencodeUrl: config.opencodeUrl || defaultUrl,
+      opencodeUrl: cfg.opencodeUrl || defaultUrl,
+      apiUrl: cfg.apiUrl || process.env.NEZHA_API_URL || DEFAULT_API_URL,
       username:
-        config.username || process.env.OPENCODE_SERVER_USERNAME || "opencode",
-      password: config.password || process.env.OPENCODE_SERVER_PASSWORD || "",
-      reminderIntervalMs: config.reminderIntervalMs || 2 * 60 * 1000,
+        cfg.username || process.env.OPENCODE_SERVER_USERNAME || "opencode",
+      password:
+        cfg.password || process.env.OPENCODE_SERVER_PASSWORD || "",
+      reminderIntervalMs: cfg.reminderIntervalMs || 2 * 60 * 1000,
     };
-    this.templateService = new ReminderTemplateService(db);
+    this.apiBaseUrl = this.config.apiUrl;
+
+    if (dbOrConfig && typeof dbOrConfig === 'object' && 'query' in dbOrConfig) {
+      this.templateService = new ReminderTemplateService(dbOrConfig);
+    } else {
+      this.templateService = new ReminderTemplateService({ query: async () => ({ rows: [] }) } as any);
+    }
   }
 
   async start(): Promise<void> {
@@ -143,82 +163,43 @@ export class OpenCodeReminderService {
   }
 
   private async collectSystemStatus(): Promise<SystemStatus> {
-    const pendingTasks = await this.db.query<{ count: string }>(
-      `SELECT COUNT(*) as count FROM tasks WHERE status = 'PENDING'`,
-    );
+    try {
+      const url = `${this.apiBaseUrl}/status/full`;
+      const apiKey = process.env.NEZHA_API_KEY;
+      const fetchUrl = apiKey ? `${url}?api_key=${apiKey}` : url;
 
-    const failedTasks = await this.db.query<{ count: string }>(
-      `SELECT COUNT(*) as count FROM tasks WHERE status = 'FAILED' AND created_at > NOW() - INTERVAL '24 hours'`,
-    );
+      const response = await fetch(fetchUrl, {
+        signal: AbortSignal.timeout(STATUS_FETCH_TIMEOUT_MS),
+      });
 
-    const openIssues = await this.db.query<{ count: string }>(
-      `SELECT COUNT(*) as count FROM issues WHERE status = 'open'`,
-    );
+      if (!response.ok) {
+        logger.warn(
+          `[OpenCodeReminder] API status request failed: ${response.status}, falling back to empty status`
+        );
+        return this.getEmptyStatus();
+      }
 
-    const recentMemories = await this.db.query<{ count: string }>(
-      `SELECT COUNT(*) as count FROM memory WHERE created_at > NOW() - INTERVAL '24 hours'`,
-    );
+      const data = (await response.json()) as FullSystemStatus;
+      logger.debug(`[OpenCodeReminder] Fetched system status via API`);
+      return data;
+    } catch (error) {
+      logger.warn(`[OpenCodeReminder] Failed to fetch status via API:`, error);
+      return this.getEmptyStatus();
+    }
+  }
 
-    const totalMemories = await this.db.query<{ count: string }>(
-      `SELECT COUNT(*) as count FROM memory`,
-    );
-
-    const criticalTasks = await this.db.query<{
-      title: string;
-      priority: number;
-    }>(
-      `SELECT title, priority FROM tasks WHERE status = 'PENDING' AND priority >= 8 ORDER BY priority DESC LIMIT 5`,
-    );
-
-    const recentLearnings = await this.db.query<{
-      content: string;
-      tags: string[];
-    }>(
-      `SELECT content, tags FROM memory WHERE created_at > NOW() - INTERVAL '24 hours' ORDER BY importance DESC LIMIT 5`,
-    );
-
-    const openIssuesList = await this.db.query<{
-      id: string;
-      title: string;
-      severity: string;
-      issue_type: string;
-      status: string;
-    }>(
-      `SELECT id, title, severity, issue_type, status FROM issues WHERE status = 'open' 
-       ORDER BY CASE severity WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END, 
-       created_at DESC LIMIT 10`,
-    );
-
-    const pending = parseInt(pendingTasks.rows[0]?.count || "0", 10);
-    const failed = parseInt(failedTasks.rows[0]?.count || "0", 10);
-    const issues = parseInt(openIssues.rows[0]?.count || "0", 10);
-    const memories = parseInt(recentMemories.rows[0]?.count || "0", 10);
-
+  private getEmptyStatus(): SystemStatus {
     return {
-      pendingTasks: pending,
-      failedTasks: failed,
-      openIssues: issues,
-      recentMemories: memories,
-      hasIssues: pending > 0 || failed > 0 || issues > 0,
-      criticalTasks: criticalTasks.rows,
-      recentLearnings: recentLearnings.rows.map((r) => ({
-        content: r.content,
-        tags: r.tags || [],
-      })),
-      suggestions: [
-        "Review recent code changes",
-        "Optimize slow queries",
-        "Update documentation",
-        "Run comprehensive tests",
-      ],
-      totalMemories: parseInt(totalMemories.rows[0]?.count || "0", 10),
-      openIssuesList: openIssuesList.rows.map((i) => ({
-        id: i.id,
-        title: i.title,
-        severity: i.severity,
-        issueType: i.issue_type,
-        status: i.status,
-      })),
+      pendingTasks: 0,
+      failedTasks: 0,
+      openIssues: 0,
+      recentMemories: 0,
+      hasIssues: false,
+      criticalTasks: [],
+      recentLearnings: [],
+      suggestions: [],
+      totalMemories: 0,
+      openIssuesList: [],
     };
   }
 
