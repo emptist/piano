@@ -160,21 +160,21 @@ export class TaskCoordinator {
 
   private buildTaskMessage(task: TaskContext): string {
     return `
-## 任务
+## Task
 
-**标题**: ${task.title}
-**描述**: ${task.description || '(无)'}
-**优先级**: ${task.priority}
+**Title**: ${task.title}
+**Description**: ${task.description || '(none)'}
+**Priority**: ${task.priority}
 
-## 执行要求
+## Execution Requirements
 
-1. 自主分析任务
-2. 制定执行计划
-3. 执行并完成
-4. 完成后使用以下标记：
-   - [LEARN] insight: <学到的>
-   - [ISSUE] title: <问题> type: <类型> severity: <程度>
-   - [TASK] title: <新任务> priority: <优先级>
+1. Analyze task autonomously
+2. Create execution plan
+3. Execute and complete
+4. After completion, use these markers:
+   - [LEARN] insight: <insight>
+   - [ISSUE] title: <issue> type: <type> severity: <severity>
+   - [TASK] title: <new task> priority: <priority>
 
 Save via: node dist/cli/index.js areflect "[LEARN] insight: ..."
 `;

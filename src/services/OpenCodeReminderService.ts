@@ -224,19 +224,19 @@ export class OpenCodeReminderService {
   private generateFallbackMessage(status: SystemStatus): string {
     const parts: string[] = [];
 
-    parts.push("🤖 **Nezha 秘书提醒**\n");
+    parts.push("🤖 **Nezha Secretary Reminder**\n");
 
-    parts.push("📊 **系统状态**:");
+    parts.push("📊 **System Status**:");
     if (status.pendingTasks > 0) {
-      parts.push(`- 📋 ${status.pendingTasks} 个待处理任务`);
+      parts.push(`- 📋 ${status.pendingTasks} pending tasks`);
     }
     if (status.failedTasks > 0) {
-      parts.push(`- ❌ ${status.failedTasks} 个失败任务`);
+      parts.push(`- ❌ ${status.failedTasks} failed tasks`);
     }
     if (status.openIssues > 0) {
-      parts.push(`- 🐛 ${status.openIssues} 个开放问题`);
+      parts.push(`- 🐛 ${status.openIssues} open issues`);
       if (status.openIssuesList && status.openIssuesList.length > 0) {
-        parts.push("  具体问题:");
+        parts.push("  Specific issues:");
         status.openIssuesList.forEach((issue, idx) => {
           parts.push(
             `    ${idx + 1}. [${issue.severity}] ${issue.title} (${issue.id})`,
@@ -245,32 +245,32 @@ export class OpenCodeReminderService {
       }
     }
     if (status.recentMemories > 0) {
-      parts.push(`- 📚 ${status.recentMemories} 条新学习`);
+      parts.push(`- 📚 ${status.recentMemories} recent learnings`);
     }
 
-    parts.push("\n🎯 **建议下一步行动**:");
+    parts.push("\n🎯 **Suggested Next Actions**:");
     if (status.pendingTasks > 0) {
-      parts.push("1. 处理待办任务 (使用 `nezha tasks` 查看)");
+      parts.push("1. Handle pending tasks (use `nezha tasks` to view)");
     }
     if (status.failedTasks > 0) {
-      parts.push("2. 分析失败任务 (使用 `nezha failed` 查看)");
+      parts.push("2. Analyze failed tasks (use `nezha failed` to view)");
     }
     if (status.openIssues > 0) {
-      parts.push("3. 解决开放问题 (使用 `nezha issues` 查看)");
+      parts.push("3. Resolve open issues (use `nezha issues` to view)");
     }
     if (
       status.pendingTasks === 0 &&
       status.failedTasks === 0 &&
       status.openIssues === 0
     ) {
-      parts.push("✨ 系统状态良好！可以考虑：");
-      parts.push("- 代码审查");
-      parts.push("- 学习新技术");
-      parts.push("- 优化现有代码");
+      parts.push("✨ System is healthy! Consider:");
+      parts.push("- Code review");
+      parts.push("- Learn new technologies");
+      parts.push("- Optimize existing code");
     }
 
-    parts.push("\n🔄 **NEVER DECLARE DONE** - 总有更多可以改进的地方");
-    parts.push("\n💡 **提示**: 自主决策，不要等待人类指示");
+    parts.push("\n🔄 **NEVER DECLARE DONE** - there is always more to improve");
+    parts.push("\n💡 **Tip**: Make autonomous decisions, do not wait for human instructions");
 
     return parts.join("\n");
   }

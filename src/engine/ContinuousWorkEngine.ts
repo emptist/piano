@@ -99,19 +99,19 @@ export class ContinuousWorkEngine {
       const safeTitle = sanitizeForSql(task.title, MAX_TITLE_LENGTH);
       const safeResult = sanitizeForSql(result.result, MAX_RESULT_LENGTH);
       await this.api.createTask({
-        title: `修复: ${safeTitle}`,
-        description: `执行失败: ${safeResult}`,
+        title: `Fix: ${safeTitle}`,
+        description: `Execution failed: ${safeResult}`,
         priority: task.priority + 10,
       });
     }
 
-    if (resultText.includes('todo') || resultText.includes('后续')) {
+    if (resultText.includes('todo') || resultText.includes('follow-up')) {
       const match = resultText.match(/todo[:\s]+(.+?)(?:\n|$)/i);
       if (match?.[1]) {
         const safeTodo = sanitizeForSql(match[1].trim(), MAX_TITLE_LENGTH);
         await this.api.createTask({
           title: safeTodo,
-          description: `从任务 ${sanitizeForSql(task.title, MAX_TITLE_LENGTH)} 分解`,
+          description: `Decomposed from task ${sanitizeForSql(task.title, MAX_TITLE_LENGTH)}`,
           priority: task.priority,
         });
       }
@@ -203,7 +203,7 @@ export class ContinuousWorkEngine {
   }
 
   private async saveLearning(task: TaskContext, result: { executor: string; result: string }) {
-    const content = `任务完成: ${task.title}\n执行器: ${result.executor}\n结果: ${result.result}`;
+    const content = `Task completed: ${task.title}\nExecutor: ${result.executor}\nResult: ${result.result}`;
 
     try {
       await this.api.saveMemory(content, ['task', 'completed', task.priority >= 50 ? 'high-priority' : 'normal']);

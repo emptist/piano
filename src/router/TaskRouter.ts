@@ -63,7 +63,7 @@ export class TaskRouter {
       text.includes("plan") ||
       text.includes("arrange") ||
       text.includes("create task") ||
-      text.includes("分解");
+      text.includes("decompose");
 
     if (isPiTask && this.config.usePi) {
       return "pi";

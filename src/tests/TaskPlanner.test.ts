@@ -10,7 +10,7 @@ describe('TaskPlanner', () => {
     const plan = planner.plan(task);
 
     expect(plan.subtasks).toHaveLength(1);
-    expect(plan.subtasks[0].title).toContain('执行');
+    expect(plan.subtasks[0].title).toContain('Execute');
     expect(plan.estimatedDuration).toBe(15);
   });
 
@@ -19,14 +19,14 @@ describe('TaskPlanner', () => {
     const plan = planner.plan(task);
 
     expect(plan.subtasks.length).toBeGreaterThanOrEqual(2);
-    expect(plan.subtasks.some(st => st.title.includes('分析'))).toBe(true);
+    expect(plan.subtasks.some(st => st.title.includes('Analyze'))).toBe(true);
   });
 
   it('should add database subtask for database tasks', () => {
     const task = { id: '3', title: 'Create database migration', priority: 7 };
     const plan = planner.plan(task);
 
-    expect(plan.subtasks.some(st => st.title.includes('设计'))).toBe(true);
+    expect(plan.subtasks.some(st => st.title.includes('Design'))).toBe(true);
   });
 
   it('should estimate duration based on subtask count', () => {

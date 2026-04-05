@@ -44,8 +44,8 @@ export class TaskPlanner {
     if (title.includes("create") || title.includes("implement")) {
       subtasks.push({
         id: "analysis",
-        title: `分析: ${task.title}`,
-        description: "分析需求和技术方案",
+        title: `Analyze: ${task.title}`,
+        description: "Analyze requirements and technical approach",
         priority: task.priority,
         complexity: 3,
       });
@@ -54,8 +54,8 @@ export class TaskPlanner {
     if (title.includes("api") || title.includes("database")) {
       subtasks.push({
         id: "design",
-        title: `设计: ${task.title}`,
-        description: "设计接口和数据模型",
+        title: `Design: ${task.title}`,
+        description: "Design interfaces and data models",
         priority: task.priority,
         complexity: 4,
         dependsOn: ["analysis"],
@@ -65,8 +65,8 @@ export class TaskPlanner {
     if (title.includes("test")) {
       subtasks.push({
         id: "implement",
-        title: `实现: ${task.title}`,
-        description: "编写测试用例",
+        title: `Implement: ${task.title}`,
+        description: "Write test cases",
         priority: task.priority,
         complexity: 2,
       });
@@ -75,8 +75,8 @@ export class TaskPlanner {
     if (subtasks.length === 0) {
       subtasks.push({
         id: "execute",
-        title: `执行: ${task.title}`,
-        description: task.description || "执行任务",
+        title: `Execute: ${task.title}`,
+        description: task.description || "Execute the task",
         priority: task.priority,
         complexity: 2,
       });
