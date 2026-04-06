@@ -12,12 +12,32 @@
 
 ## Architecture
 
-Piano is independent from Nezha, connected via CLI:
+```
+┌─────────────────────────────────────────────────────┐
+│                    Piano (路由层)                    │
+│           Task routing & orchestration               │
+└─────────────────────┬───────────────────────────────┘
+                      │ spawns
+                      ↓
+┌─────────────────────────────────────────────────────┐
+│              OpenCode + Big-Pickle                  │
+│            (执行层 - 当前会话)                        │
+└─────────────────────┬───────────────────────────────┘
+                      │ MCP tools
+                      ↓
+┌─────────────────────────────────────────────────────┐
+│                  Nezha (服务层)                      │
+│  PostgreSQL + Memory + Tasks + Broadcasts + Skills   │
+└─────────────────────────────────────────────────────┘
+```
+
+Piano is independent from Nezha, connected via CLI and MCP:
 
 - Uses `nezha tasks` - Query pending tasks
 - Uses `nezha share` - Broadcast to other AIs
 - Uses `nezha improve` - Execute continuous improvement
 - Uses `nezha learn` - Save learning to memory
+- Uses MCP `learn`/`memory_search` - Access memory via OpenCode
 
 ## Files
 
@@ -174,3 +194,28 @@ piano  # 自动处理 coffeeclaw 项目
 ```
 
 **显式启动模式** - 不再默认自动加载，尊重用户选择。
+
+## Git Workflow (Recommended from Nezha)
+
+**Nezha 已实施双重保护机制，建议 Piano 采用相同方案：**
+
+1. **CI 验证**: GitHub Actions 检查 commit 必须包含 `[task:]` + `[Agent:]`
+2. **Skill**: `skills/git-workflow.md` 指导 AI 正确提交
+3. **AGENTS.md**: 明确禁止绕过 hook
+
+### Piano 实施建议
+
+```bash
+# 1. 复制 Nezha 的 .github/workflows/ci.yml 验证 job
+# 2. 在 piano/ 创建 skills/git-workflow.md
+# 3. 在 AGENTS.md 添加 Git 提交规则
+```
+
+### 核心规则
+
+- ❌ 禁止 `git config core.hooksPath /dev/null` 绕过 hook
+- ❌ 禁止 `git commit --no-verify`
+- ✅ 每次 commit 必须包含 `[task: <uuid>]` 或 `[issue: <uuid>]`
+- ✅ hook 自动添加 `[Agent: <id>]`
+
+详见: https://github.com/emptist/nezha/pull/X
