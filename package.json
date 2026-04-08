@@ -1,7 +1,7 @@
 {
   "name": "@nezha/piano",
   "version": "0.1.0",
-  "description": "Piano - Task routing and coordination subsystem for Nezha AI",
+  "description": "Piano = NuPI + OpenCode. 任务路由与协调层",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -18,9 +18,11 @@
   },
   "keywords": [
     "nezha",
+    "nupi",
+    "opencode",
     "ai",
     "task-routing",
-    "piano"
+    "autonomous"
   ],
   "author": "emptist",
   "license": "MIT",
