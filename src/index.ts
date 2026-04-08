@@ -14,12 +14,12 @@ export { PianoHeartbeatService } from './services/PianoHeartbeatService.js';
 export type { PianoHeartbeatConfig } from './services/PianoHeartbeatService.js';
 
 export { PiExecutor } from '@nezha/nupi';
-export type { PiTaskResult, PiConfig } from '@nezha/nupi';
+export type { PiTaskResult as NupiPiTaskResult, PiConfig as NupiPiConfig } from '@nezha/nupi';
 
 export { OpenCodeSessionManager } from './services/OpenCodeSessionManager.js';
 export type { OpenCodeClientConfig } from './services/OpenCodeSessionManager.js';
 
 export { PiExecutorWrapper } from './executor/PiExecutorWrapper.js';
-export type { PiExecutorConfig } from './executor/PiExecutorWrapper.js';
+export type { PiExecutorInterface, PiTaskResult, PiConfig } from './executor/PiInterface.js';
 
 export { AI_CAPABILITY_LEVELS, getCapabilityLevel, needsDelegation, getDelegationTarget } from './shared/capability.js';

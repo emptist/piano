@@ -38,7 +38,7 @@ export class TaskCoordinator {
     this.router = new TaskRouter();
     this.config = {
       useAuth: true,
-      usePi: config.usePi ?? false,
+      usePi: config.usePi ?? true,
       ...config,
     };
     this.pollInterval = config.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;

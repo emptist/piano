@@ -136,8 +136,9 @@ export class PianoHeartbeatService extends HeartbeatService {
 
       try {
         const result = await this.piExecutor.execute(piPrompt);
+        const resultMessage = result.message ?? result.output ?? '';
         logger.info(
-          `[PiExecutor] Result: ${result.message.substring(0, 100)}...`,
+          `[PiExecutor] Result: ${resultMessage.substring(0, 100)}...`,
         );
 
         const complexity = planned.complexity ?? 0;
@@ -146,7 +147,7 @@ export class PianoHeartbeatService extends HeartbeatService {
           `UPDATE ${DATABASE_TABLES.TASKS} SET status = $1, result = $2, completed_at = NOW(), retry_count = 0, complexity = $3 WHERE id = $4`,
           [
             TASK_STATUS.COMPLETED,
-            JSON.stringify({ message: result.message, output: result.output }),
+            JSON.stringify({ message: resultMessage, output: result.output }),
             complexity,
             taskId,
           ],
