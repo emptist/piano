@@ -17,10 +17,10 @@ export class TaskRouter {
   constructor(config: Partial<TaskRouterConfig> = {}) {
     this.config = {
       useOpenCode: config.useOpenCode ?? true,
-      usePi: config.usePi ?? false,
+      usePi: config.usePi ?? true,
       complexityThreshold: config.complexityThreshold ?? 50,
       selfCapability: config.selfCapability ?? "internal",
-      delegateAll: config.delegateAll ?? true,
+      delegateAll: config.delegateAll ?? false,
     };
   }
 
@@ -48,24 +48,19 @@ export class TaskRouter {
       return this.executorForCapability(delegateTo);
     }
 
-    if (this.config.delegateAll && this.config.useOpenCode) {
-      return "opencode";
-    }
+    const taskText = `${taskTitle} ${taskDescription || ""}`.toLowerCase();
 
-    if (priority >= 50 && this.config.useOpenCode) {
-      return "opencode";
-    }
+    const requiresLocalOperation =
+      taskText.includes("edit file") ||
+      taskText.includes("modify code") ||
+      taskText.includes("run bash") ||
+      taskText.includes("read file") ||
+      taskText.includes("write file") ||
+      taskText.includes("database") ||
+      taskText.includes("sql") ||
+      taskText.includes("execute command");
 
-    const text = `${taskTitle} ${taskDescription || ""}`.toLowerCase();
-    const isPiTask =
-      text.includes("remind") ||
-      text.includes("check") ||
-      text.includes("plan") ||
-      text.includes("arrange") ||
-      text.includes("create task") ||
-      text.includes("decompose");
-
-    if (isPiTask && this.config.usePi) {
+    if (requiresLocalOperation && this.config.usePi) {
       return "pi";
     }
 
