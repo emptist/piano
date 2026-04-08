@@ -2,6 +2,119 @@ const NEZHA_API = 'http://127.0.0.1:4099';
 const MAX_RETRIES = 6;
 const RETRY_DELAY_MS = 5000;
 
+let openCodePid: number | null = null;
+let openCodePort: string | null = null;
+
+function getOpenCodePort(): string {
+  return openCodePort || '4097';
+}
+
+function findOpenCodeProcess(): { pid: number; port: string } | null {
+  try {
+    const { execSync } = require('child_process');
+    const result = execSync('pgrep -f "opencode.*serve|opencode server" -l', { encoding: 'utf8' });
+    const match = result.match(/(\d+)/);
+    if (match) {
+      const pid = parseInt(match[1], 10);
+      const lsof = execSync(`lsof -i -P -n | grep ${pid} | grep LISTEN`, { encoding: 'utf8' });
+      const portMatch = lsof.match(/:(\d+)\s/);
+      if (portMatch) {
+        openCodePort = portMatch[1];
+        return { pid, port: portMatch[1] };
+      }
+    }
+  } catch {}
+  return null;
+}
+
+async function testOpenCodeAccessible(): Promise<boolean> {
+  try {
+    const port = getOpenCodePort();
+    const res = await fetch(`http://127.0.0.1:${port}/session`, { method: 'POST', signal: AbortSignal.timeout(3000) });
+    return res.ok || res.status === 400;
+  } catch {
+    return false;
+  }
+}
+
+async function startOpenCode(): Promise<boolean> {
+  try {
+    console.log('[Piano] Starting OpenCode Server...');
+    const { spawn } = await import('child_process');
+    const child = spawn('opencode', ['serve'], { 
+      detached: false, 
+      stdio: 'pipe',
+      env: { ...process.env, OPENCODE_PORT: '4097' }
+    });
+    openCodePid = child.pid || null;
+    openCodePort = '4097';
+    
+    await new Promise((resolve) => {
+      child.stdout?.on('data', (data) => {
+        const msg = data.toString();
+        if (msg.includes('listening') || msg.includes('4097')) {
+          setTimeout(resolve, 2000);
+        }
+      });
+      setTimeout(() => resolve(true), 5000);
+    });
+    
+    console.log(`[Piano] OpenCode started (pid: ${openCodePid}, port: ${openCodePort}).`);
+    return true;
+  } catch (e) {
+    console.error('[Piano] Failed to start OpenCode:', e);
+    return false;
+  }
+}
+
+async function ensureOpenCodeRunning(): Promise<boolean> {
+  const existing = findOpenCodeProcess();
+  
+  if (existing && await testOpenCodeAccessible()) {
+    openCodePort = existing.port;
+    console.log(`[Piano] Using existing OpenCode (pid: ${existing.pid}, port: ${existing.port}).`);
+    return true;
+  }
+  
+  if (existing) {
+    console.log('[Piano] Existing OpenCode not accessible (auth?), starting own instance...');
+  } else {
+    console.log('[Piano] OpenCode not running. Starting...');
+  }
+  
+  return await startOpenCode();
+}
+
+function cleanupOpenCode(): void {
+  if (openCodePid) {
+    try {
+      process.kill(openCodePid);
+      console.log(`[Piano] Stopped OpenCode (pid: ${openCodePid}).`);
+    } catch {}
+    openCodePid = null;
+  }
+}
+
+process.on('exit', cleanupOpenCode);
+process.on('SIGINT', () => { cleanupOpenCode(); process.exit(0); });
+process.on('SIGTERM', () => { cleanupOpenCode(); process.exit(0); });
+
+let apiHealthy: boolean | null = null;
+
+async function ensureNezhaRunning(): Promise<boolean> {
+  try {
+    const res = await fetch('http://127.0.0.1:4099/health', { signal: AbortSignal.timeout(2000) });
+    if (res.ok) {
+      console.log('[Piano] Nezha API already running.');
+      return true;
+    }
+  } catch {}
+  
+  console.log('[Piano] Nezha API not running. Creating Issue for NuPI...');
+  await reportNezhaNotRunning();
+  return false;
+}
+
 async function apiPost(path: string, body: Record<string, unknown>): Promise<{ id?: string; error?: string }> {
   try {
     const res = await fetch(`${NEZHA_API}/${path}`, {
@@ -28,7 +141,36 @@ async function apiGet(path: string): Promise<{ error?: string; data?: unknown }>
   }
 }
 
-let apiHealthy: boolean | null = null;
+async function reportNezhaNotRunning(): Promise<void> {
+  try {
+    const { spawn } = await import('child_process');
+    const title = `Nezha API 未运行 (递归 Issue - ${new Date().toISOString().slice(0,10)})`;
+    const description = `## 递归问题
+Piano 检测到 Nezha API Server 未运行。
+NuPI 应该自动启动它，但似乎又出现了相同问题。
+
+## 时间
+${new Date().toISOString()}
+
+## 之前 Issue
+bb9bbe87 - NuPI 启动时未检测和自动启动 Nezha
+
+## 请 NuPI 确认并修复`;
+
+    spawn('node', [
+      '/Users/jk/gits/hub/tools_ai/nezha/dist/cli/index.js',
+      'areflect',
+      `[ISSUE] title: ${title} description: ${description} severity: critical`
+    ], {
+      cwd: '/Users/jk/gits/hub/tools_ai/nezha',
+      detached: true,
+      stdio: 'ignore'
+    });
+    console.log('[Piano] Created recursive Issue for NuPI');
+  } catch (e) {
+    console.error('[Piano] Failed to create Issue:', e);
+  }
+}
 
 async function waitForApi(attempts: number = MAX_RETRIES): Promise<boolean> {
   for (let i = 1; i <= attempts; i++) {
@@ -40,18 +182,25 @@ async function waitForApi(attempts: number = MAX_RETRIES): Promise<boolean> {
       return true;
     }
     apiHealthy = false;
+    
+    if (i === 1) {
+      console.log('[Piano] API not responding. NuPI should auto-start...');
+    }
+    
     if (i < attempts) {
       console.log(`[Piano] Not responding. Retrying in ${RETRY_DELAY_MS / 1000}s...`);
       await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
     }
   }
-  console.log(`[Piano] Nezha API did not respond after ${attempts} attempts.`);
+  
+  console.log('[Piano] Nezha API still not responding. Creating Issue...');
+  await reportNezhaNotRunning();
   return false;
 }
 
 async function delegateToNezha(pi: any): Promise<string> {
   if (apiHealthy === false && !(await waitForApi(2))) {
-    return '[Piano] Nezha API not available. Run "nezha start" first.';
+    return '[Piano] Nezha API not available. NuPI should handle this. Use /piano-start to retry.';
   }
 
   const result = await apiPost('tasks', {
@@ -77,21 +226,24 @@ export default function pianoAutoWork(pi: any): void {
   const DELEGATE_ALL = process.env.PIANO_DELEGATE_ALL !== 'false';
 
   pi.on('session_start', async () => {
-    if (!DELEGATE_ALL) {
-      console.log('[Piano] Autonomous mode. /piano-start to delegate, /piano-tasks for tasks.');
-      return;
-    }
-
-    console.log('[Piano] Connecting to Nezha...');
+    console.log('[Piano] Checking dependencies...');
+    
+    await ensureOpenCodeRunning();
+    
+    console.log('[Piano] Waiting for Nezha (handled by NuPI)...');
     const healthy = await waitForApi(MAX_RETRIES);
 
     if (!healthy) {
-      console.log('[Piano] Could not reach Nezha. /piano-start to retry later.');
+      console.log('[Piano] Nezha not available. Issue created for NuPI. /piano-start to retry.');
       return;
     }
 
-    console.log('[Piano] Auto-delegating to Nezha/OpenCode...');
-    await delegateToNezha(pi);
+    if (DELEGATE_ALL) {
+      console.log('[Piano] Auto-delegating to Nezha/OpenCode...');
+      await delegateToNezha(pi);
+    } else {
+      console.log('[Piano] Autonomous mode. /piano-start to delegate, /piano-tasks for tasks.');
+    }
   });
 
   pi.registerCommand('piano-start', {
@@ -104,12 +256,12 @@ export default function pianoAutoWork(pi: any): void {
     handler: async () => {
       if (apiHealthy === false) {
         const ok = await waitForApi(2);
-        if (!ok) return '[Piano] Nezha API offline. Run "nezha start" to enable.';
+        if (!ok) return '[Piano] Nezha API offline. NuPI should auto-start it.';
       }
       const result = await apiGet('tasks?status=PENDING&limit=3');
       if (result.error) {
         apiHealthy = false;
-        return `[Piano] API error: ${result.error}. Try: nezha start`;
+        return `[Piano] API error: ${result.error}. Try: /piano-start`;
       }
       const tasks = result.data as Array<{ title: string; priority: number }>;
       const lines = tasks.map(t => `  [P${t.priority}] ${t.title}`).join('\n') || '  (no pending tasks)';
