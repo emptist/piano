@@ -203,11 +203,12 @@ async function delegateToNezha(pi: any): Promise<string> {
     return '[Piano] Nezha API not available. NuPI should handle this. Use /piano-start to retry.';
   }
 
+  // 不再自动创建 Continuous Improvement Cycle - 委托给 NuPI 自己决定
   const result = await apiPost('tasks', {
-    title: 'Continuous Improvement Cycle',
-    description: 'Review codebase, find issues, create improvement tasks. PDCA cycle.',
-    priority: 10,
-    category: 'bugfix',
+    title: 'Piano Delegate: Review codebase and find improvements',
+    description: 'Piano delegates work to NuPI for execution. Use Pi agent-loop to process.',
+    priority: 5,
+    category: 'feature',
     type: 'implementation',
   });
 
