@@ -18,6 +18,7 @@ SCRIPT_DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
 PIANO_EXT="$SCRIPT_DIR/../extensions/piano-tools.ts"
 PIANO_AUTOWORK="$SCRIPT_DIR/../extensions/piano-autowork.ts"
 PIANO_NUPI="$SCRIPT_DIR/../extensions/nupi-tools.ts"
+PIANO_NUPI_AUTOWORK="$SCRIPT_DIR/../extensions/nupi-autowork.ts"
 NUPI_EXT="$HOME/.pi/agent/extensions/nupi-tools.ts"
 
 show_help() {
@@ -33,7 +34,7 @@ EOF
 }
 
 run_piano() {
-    local PI_ARGS=("--no-extensions" "-e" "$PIANO_EXT" "-e" "$PIANO_AUTOWORK" "-e" "$PIANO_NUPI")
+    local PI_ARGS=("--no-extensions" "-e" "$PIANO_EXT" "-e" "$PIANO_AUTOWORK" "-e" "$PIANO_NUPI" "-e" "$PIANO_NUPI_AUTOWORK")
 
     if [ -t 1 ]; then
         exec pi "${PI_ARGS[@]}" "$@"
