@@ -26,3 +26,6 @@ export { AI_CAPABILITY_LEVELS, getCapabilityLevel, needsDelegation, getDelegatio
 
 export { ExternalAgentServer, createExternalAgentServer } from './services/ExternalAgentServer.js';
 export type { ExternalAgentServerConfig, ExternalAgentConfig, ExternalAgentRequest, ExternalAgentResponse } from './services/ExternalAgentServer.js';
+
+export { PianoMcpService, createPianoMcpService } from './services/PianoMcpService.js';
+export type { PianoMcpConfig, McpServerConfig, McpServerStatus } from './services/PianoMcpService.js';
