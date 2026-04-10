@@ -95,10 +95,21 @@ System prompt for the agent goes here.
   - `extensions/piano-infra.ts`: 改为 async handlers
   - `extensions/piano-tools.ts`: 改为 async handlers
 
+### Task #eebf3dfc - ExternalAgentServer ✅ 已完成
+- 新建 `src/services/ExternalAgentServer.ts` (282行)
+- 支持 `/scout`, `/planner`, `/worker` 端点
+- NuPI ExternalDelegate 可以调用 Piano 作为外部 AI
+- 内置 Pi subagent 风格 system prompts
+
+### Task #3d240a21 - OpenCode MCP 集成 ✅ 已完成
+- 新建 `src/services/PianoMcpService.ts` (185行)
+- getStatus: 获取 MCP 服务器状态
+- addServer: 动态添加 MCP 服务器
+- removeServer: 删除 MCP 服务器
+- startOAuth/completeOAuth: OAuth 认证支持
+
 ### 后续任务
-- Task #3d240a21: 集成 OpenCode MCP
 - Task #f492c66a: 集成 OpenCode Skills
-- Task #eebf3dfc: 接入 Pi Subagent 外挂模式
 
 ## 5. 设计原则
 
