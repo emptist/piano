@@ -1,0 +1,1 @@
+/Users/jk/gits/hub/tools_ai/nupi/extensions/nupi-autowork.ts
