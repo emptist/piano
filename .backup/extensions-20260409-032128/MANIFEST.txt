@@ -1,0 +1,10 @@
+Piano Ventilator Hard-Link Deployment Backup
+=============================================
+Date: Thu Apr  9 03:21:28 CST 2026
+Method: hard link (ln) - source and target share same inode
+Files linked:
+  - piano-brain-tools.ts
+  - piano-enhancement.ts
+
+To restore originals:
+  bash /Users/jk/gits/hub/tools_ai/piano/restore-extensions.sh /Users/jk/gits/hub/tools_ai/piano/.backup/extensions-20260409-032128

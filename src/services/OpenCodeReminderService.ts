@@ -13,7 +13,7 @@ import { ReminderTemplateService, SystemStatus } from "nezha";
 import { logger } from "nezha";
 import { OPENCODE_API } from "nezha";
 
-const DEFAULT_API_URL = 'http://127.0.0.1:4099';
+const DEFAULT_API_URL = 'http://127.0.0.1:5999';
 const STATUS_FETCH_TIMEOUT_MS = 10000;
 
 export interface OpenCodeReminderConfig {
