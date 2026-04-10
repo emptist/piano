@@ -49,7 +49,7 @@ run_piano() {
 }
 
 run_piano_print() {
-    local API="http://127.0.0.1:4099"
+    local API="http://127.0.0.1:5999"
 
     echo "[Piano] Delegating to Nezha/OpenCode via API..."
 
@@ -64,11 +64,12 @@ run_piano_print() {
     curl -s --max-time 5 "$API/tasks?status=PENDING&limit=5" | python3 -c "
 import sys,json
 try:
-    tasks=json.load(sys.stdin)
+    data=json.load(sys.stdin)
+    tasks=data.get('rows', data)
     if not tasks: print('  (no pending tasks)'); sys.exit()
-    for t in tasks[:5]: print(f\"  [{t.get('priority','?')}] {t.get('title','?')}\")
+    for t in tasks[:5]: print(f\"  [{t.get('priority','?')}] {t.get('title','?')[:60]}\")
     if len(tasks)>5: print(f'  ... and {len(tasks)-5} more')
-except: print('  (error parsing response)')
+except Exception as e: print(f'  (error: {e})')
 " 2>&1
 
     echo ""
@@ -81,8 +82,8 @@ except: print('  (error parsing response)')
 
     if echo "$RESULT" | grep -q '"id"'; then
         local TASK_ID
-        TASK_ID=$(echo "$RESULT" | python3 -c "import sys,json;print(json.load(sys.stdin).get('id','?')[:8])")
-        echo "[PianO] Done. Task $TASK_ID... queued for OpenCode."
+        TASK_ID=$(echo "$RESULT" | python3 -c "import sys,json;d=json.load(sys.stdin);print(d.get('id', d.get('id', '?'))[:8])")
+        echo "[Piano] Done. Task $TASK_ID... queued for OpenCode."
     else
         echo "[Piano] Warning: $RESULT"
     fi

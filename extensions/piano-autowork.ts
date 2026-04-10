@@ -1,4 +1,4 @@
-const NEZHA_API = 'http://127.0.0.1:4099';
+const NEZHA_API = 'http://127.0.0.1:5999';
 const MAX_RETRIES = 6;
 const RETRY_DELAY_MS = 5000;
 
