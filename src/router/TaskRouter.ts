@@ -60,6 +60,22 @@ export class TaskRouter {
       taskText.includes("sql") ||
       taskText.includes("execute command");
 
+    const isPiTask =
+      taskText.includes("remind") ||
+      taskText.includes("check") ||
+      taskText.includes("plan") ||
+      taskText.includes("simple") ||
+      taskText.includes("review") ||
+      taskText.includes("list");
+
+    if (priority >= 50 && this.config.useOpenCode) {
+      return "opencode";
+    }
+
+    if (isPiTask && this.config.usePi) {
+      return "pi";
+    }
+
     if (requiresLocalOperation && this.config.usePi) {
       return "pi";
     }
