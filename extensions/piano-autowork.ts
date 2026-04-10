@@ -103,7 +103,7 @@ let apiHealthy: boolean | null = null;
 
 async function ensureNezhaRunning(): Promise<boolean> {
   try {
-    const res = await fetch('http://127.0.0.1:4099/health', { signal: AbortSignal.timeout(2000) });
+    const res = await fetch(`${NEZHA_API}/health`, { signal: AbortSignal.timeout(2000) });
     if (res.ok) {
       console.log('[Piano] Nezha API already running.');
       return true;
