@@ -49,6 +49,7 @@ export class TaskRouter {
     }
 
     const taskText = `${taskTitle} ${taskDescription || ""}`.toLowerCase();
+    console.log(`[TaskRouter] Routing: "${taskTitle.substring(0, 30)}..." priority=${priority}`);
 
     const requiresLocalOperation =
       taskText.includes("edit file") ||
@@ -69,18 +70,22 @@ export class TaskRouter {
       taskText.includes("list");
 
     if (priority >= 50 && this.config.useOpenCode) {
+      console.log(`[TaskRouter] High priority (${priority}) → routing to opencode`);
       return "opencode";
     }
 
     if (isPiTask && this.config.usePi) {
+      console.log(`[TaskRouter] Simple task → routing to pi`);
       return "pi";
     }
 
     if (requiresLocalOperation && this.config.usePi) {
+      console.log(`[TaskRouter] Local operation → routing to pi`);
       return "pi";
     }
 
     if (this.config.useOpenCode) {
+      console.log(`[TaskRouter] Default → routing to opencode`);
       return "opencode";
     }
 
