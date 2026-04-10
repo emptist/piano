@@ -23,3 +23,6 @@ export { PiExecutorWrapper } from './executor/PiExecutorWrapper.js';
 export type { PiExecutorInterface, PiTaskResult, PiConfig } from './executor/PiInterface.js';
 
 export { AI_CAPABILITY_LEVELS, getCapabilityLevel, needsDelegation, getDelegationTarget } from './shared/capability.js';
+
+export { ExternalAgentServer, createExternalAgentServer } from './services/ExternalAgentServer.js';
+export type { ExternalAgentServerConfig, ExternalAgentConfig, ExternalAgentRequest, ExternalAgentResponse } from './services/ExternalAgentServer.js';
