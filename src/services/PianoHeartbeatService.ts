@@ -63,15 +63,16 @@ export class PianoHeartbeatService extends HeartbeatService {
   ): Promise<void> {
     logger.info(`[PianoHeartbeat] Routing task: ${title}`);
 
-    const executor = this.taskRouter.route(title, description);
-    logger.info(`[TaskRouter] Routing "${title}" to: ${executor}`);
+    const routingResult = this.taskRouter.route(title, description);
+    const executor = routingResult.executor;
+    logger.info(
+      `[TaskRouter] Routing "${title}" to: ${executor} (${routingResult.reason})`,
+    );
 
     let opencodeFailed = false;
 
     if (executor === "opencode") {
-      logger.info(
-        `[TaskRouter] Task "${title}" routed to OpenCode`,
-      );
+      logger.info(`[TaskRouter] Task "${title}" routed to OpenCode`);
 
       if (this.taskCoordinator) {
         try {
@@ -136,7 +137,7 @@ export class PianoHeartbeatService extends HeartbeatService {
 
       try {
         const result = await this.piExecutor.execute(piPrompt);
-        const resultMessage = result.message ?? result.output ?? '';
+        const resultMessage = result.message ?? result.output ?? "";
         logger.info(
           `[PiExecutor] Result: ${resultMessage.substring(0, 100)}...`,
         );
@@ -168,20 +169,26 @@ export class PianoHeartbeatService extends HeartbeatService {
 
     if (executor !== "opencode" || opencodeFailed) {
       logger.info(`[TaskRouter] Executing task "${title}" with internal AI...`);
-      await this.executeInternalAI(taskId, title, description, retryCount, maxRetries);
+      await this.executeInternalAI(
+        taskId,
+        title,
+        description,
+        retryCount,
+        maxRetries,
+      );
     }
   }
 
   protected override async getSystemStatus(): Promise<string> {
     try {
       const tasksResult = await this.db.query<{ count: string }>(
-        `SELECT COUNT(*) as count FROM tasks WHERE status = 'PENDING'`
+        `SELECT COUNT(*) as count FROM tasks WHERE status = 'PENDING'`,
       );
       const runningResult = await this.db.query<{ count: string }>(
-        `SELECT COUNT(*) as count FROM tasks WHERE status = 'RUNNING'`
+        `SELECT COUNT(*) as count FROM tasks WHERE status = 'RUNNING'`,
       );
       const failedResult = await this.db.query<{ count: string }>(
-        `SELECT COUNT(*) as count FROM tasks WHERE status = 'FAILED' AND created_at > NOW() - INTERVAL '24 hours'`
+        `SELECT COUNT(*) as count FROM tasks WHERE status = 'FAILED' AND created_at > NOW() - INTERVAL '24 hours'`,
       );
 
       const pending = tasksResult.rows[0]?.count || "0";
@@ -199,9 +206,9 @@ export class PianoHeartbeatService extends HeartbeatService {
       const result = await this.db.query<{ content: string }>(
         `SELECT content FROM agent_memories
          WHERE agent_id = 'system' AND content_type = 'essential'
-         ORDER BY importance DESC LIMIT 5`
+         ORDER BY importance DESC LIMIT 5`,
       );
-      return result.rows.map(r => r.content).join("\n\n");
+      return result.rows.map((r) => r.content).join("\n\n");
     } catch {
       return "(No essential knowledge available)";
     }
@@ -231,11 +238,19 @@ export class PianoHeartbeatService extends HeartbeatService {
       try {
         await this.db.query(
           `INSERT INTO tasks (title, description, priority, status) VALUES ($1, $2, $3, $4)`,
-          [task.title, task.description, options.complexity >= 4 ? 6 : 3, "PENDING"]
+          [
+            task.title,
+            task.description,
+            options.complexity >= 4 ? 6 : 3,
+            "PENDING",
+          ],
         );
         logger.info(`[PianoHeartbeat] Created subtask: ${task.title}`);
       } catch (error) {
-        logger.warn(`[PianoHeartbeat] Failed to create subtask: ${task.title}`, error);
+        logger.warn(
+          `[PianoHeartbeat] Failed to create subtask: ${task.title}`,
+          error,
+        );
       }
     }
   }

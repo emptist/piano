@@ -1,6 +1,6 @@
-import { TaskRouter, ExecutorType } from '../router/TaskRouter.js';
-import { PiExecutorWrapper } from '../executor/PiExecutorWrapper.js';
-import { OpenCodeSessionManager } from '../services/OpenCodeSessionManager.js';
+import { TaskRouter, ExecutorType } from "../router/TaskRouter.js";
+import { PiExecutorWrapper } from "../executor/PiExecutorWrapper.js";
+import { OpenCodeSessionManager } from "../services/OpenCodeSessionManager.js";
 
 const DEFAULT_POLL_INTERVAL_MS = 5_000;
 const DEFAULT_COMPLETION_TIMEOUT_MS = 300_000;
@@ -42,7 +42,8 @@ export class TaskCoordinator {
       ...config,
     };
     this.pollInterval = config.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
-    this.completionTimeout = config.completionTimeoutMs ?? DEFAULT_COMPLETION_TIMEOUT_MS;
+    this.completionTimeout =
+      config.completionTimeoutMs ?? DEFAULT_COMPLETION_TIMEOUT_MS;
 
     this.sessionManager = OpenCodeSessionManager.create({
       opencodeUrl: config.opencodeUrl,
@@ -56,33 +57,47 @@ export class TaskCoordinator {
     }
   }
 
-  async execute(task: TaskContext): Promise<{ executor: ExecutorType; result: string }> {
-    const executorType = this.router.route(task.title, task.description, task.priority);
+  async execute(
+    task: TaskContext,
+  ): Promise<{ executor: ExecutorType; result: string }> {
+    const routingResult = this.router.route(
+      task.title,
+      task.description,
+      task.priority,
+    );
+    const executorType = routingResult.executor;
 
-    if (executorType === 'pi' && this.piExecutor) {
+    if (executorType === "pi" && this.piExecutor) {
       console.log(`[TaskCoordinator] Executing task "${task.title}" on Pi...`);
       try {
         const piResult = await this.piExecutor.execute(task.title);
         return {
-          executor: 'pi',
-          result: piResult.success ? piResult.output : `Failed: ${piResult.message}`,
+          executor: "pi",
+          result: piResult.success
+            ? piResult.output
+            : `Failed: ${piResult.message}`,
         };
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
         console.error(`[TaskCoordinator] Failed to execute on Pi:`, errorMsg);
-        return { executor: 'pi', result: `Failed: ${errorMsg}` };
+        return { executor: "pi", result: `Failed: ${errorMsg}` };
       }
     }
 
-    console.log(`[TaskCoordinator] Executing task "${task.title}" on OpenCode...`);
+    console.log(
+      `[TaskCoordinator] Executing task "${task.title}" on OpenCode...`,
+    );
 
     try {
       const result = await this.executeOnOpenCode(task);
-      return { executor: 'opencode', result };
+      return { executor: "opencode", result };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      console.error(`[TaskCoordinator] Failed to execute on OpenCode:`, errorMsg);
-      return { executor: 'opencode', result: `Failed: ${errorMsg}` };
+      console.error(
+        `[TaskCoordinator] Failed to execute on OpenCode:`,
+        errorMsg,
+      );
+      return { executor: "opencode", result: `Failed: ${errorMsg}` };
     }
   }
 
@@ -92,10 +107,12 @@ export class TaskCoordinator {
     const message = this.buildTaskMessage(task);
 
     await this.sessionManager.sendMessage({
-      parts: [{ type: 'text', text: message }],
+      parts: [{ type: "text", text: message }],
     });
 
-    console.log(`[TaskCoordinator] Task sent to OpenCode, waiting for completion...`);
+    console.log(
+      `[TaskCoordinator] Task sent to OpenCode, waiting for completion...`,
+    );
 
     const result = await this.waitForCompletion(this.completionTimeout);
     return result;
@@ -107,7 +124,7 @@ export class TaskCoordinator {
     let hadActivity = false;
 
     while (Date.now() - startTime < timeoutMs) {
-      await new Promise(resolve => setTimeout(resolve, this.pollInterval));
+      await new Promise((resolve) => setTimeout(resolve, this.pollInterval));
 
       try {
         const data = await this.sessionManager.getSessionStatus();
@@ -128,21 +145,26 @@ export class TaskCoordinator {
         if (hasActivity) {
           lastActivityTime = Date.now();
           hadActivity = true;
-          console.log(`[TaskCoordinator] Processing... additions: ${additions}, files: ${files}`);
+          console.log(
+            `[TaskCoordinator] Processing... additions: ${additions}, files: ${files}`,
+          );
         } else if (hadActivity && lastUpdate) {
           const idleTime = Date.now() - lastUpdate;
 
           if (idleTime > IDLE_THRESHOLD_MS) {
-            if (!hadActivity || (additions === 0 && deletions === 0 && files === 0)) {
+            if (
+              !hadActivity ||
+              (additions === 0 && deletions === 0 && files === 0)
+            ) {
               console.log(
-                `[TaskCoordinator] VERIFICATION FAILED: No actual changes made - possible fake completion`
+                `[TaskCoordinator] VERIFICATION FAILED: No actual changes made - possible fake completion`,
               );
               throw new Error(
-                'Verification failed: No code changes detected. Task not actually completed.'
+                "Verification failed: No code changes detected. Task not actually completed.",
               );
             }
             console.log(
-              `[TaskCoordinator] Session idle for ${idleTime / 1000}s after activity - completed`
+              `[TaskCoordinator] Session idle for ${idleTime / 1000}s after activity - completed`,
             );
             return `Task completed (additions: ${additions}, deletions: ${deletions}, files: ${files})`;
           }
@@ -155,7 +177,7 @@ export class TaskCoordinator {
       }
     }
 
-    return 'Task timeout - still processing';
+    return "Task timeout - still processing";
   }
 
   private buildTaskMessage(task: TaskContext): string {
@@ -163,7 +185,7 @@ export class TaskCoordinator {
 ## Task
 
 **Title**: ${task.title}
-**Description**: ${task.description || '(none)'}
+**Description**: ${task.description || "(none)"}
 **Priority**: ${task.priority}
 
 ## Execution Requirements
@@ -189,19 +211,21 @@ Save via: node dist/cli/index.js areflect "[LEARN] insight: ..."
   }
 
   async isSessionAlive(): Promise<boolean> {
-    const sessionId = this.sessionManager['sessionId'];
+    const sessionId = this.sessionManager["sessionId"];
     if (!sessionId) return false;
     return this.sessionManager.validateSession(sessionId).catch(() => false);
   }
 
   async reuseSession(sessionId: string): Promise<void> {
-    const isValid = await this.sessionManager.validateSession(sessionId).catch(() => false);
+    const isValid = await this.sessionManager
+      .validateSession(sessionId)
+      .catch(() => false);
     if (!isValid) {
       this.sessionManager.invalidateSession();
     }
   }
 
-  setRouterConfig(config: Partial<TaskRouter['config']>) {
+  setRouterConfig(config: Partial<TaskRouter["config"]>) {
     this.router.setConfig(config);
   }
 }
