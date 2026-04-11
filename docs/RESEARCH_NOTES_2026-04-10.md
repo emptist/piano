@@ -167,3 +167,46 @@ result.reason         // "Requires code manipulation"
 
 ### 测试
 - 22 tests passing
+
+## 9. 双模式委托代码 (2026-04-11)
+
+### 问题
+Issue #5776edb3: 询问 Piano 如何委托到 OpenCode 获取 thinking
+
+### 答案
+**OpenCodeSessionManager** 在 `src/services/OpenCodeSessionManager.ts:185-212`
+
+```typescript
+// 1. 创建 session
+const resp = await fetch(`${url}/session`, {method: "POST"});
+const {id} = await resp.json();  // id = "ses_xxx"
+
+// 2. 发送消息
+await fetch(`${url}/session/${id}/message`, {
+  method: "POST",
+  headers: {"Content-Type": "application/json"},
+  body: JSON.stringify({
+    parts: [{type: "text", text: "prompt here"}]
+  })
+});
+```
+
+### 相关文件
+- `src/services/OpenCodeSessionManager.ts` - Session 管理
+- `src/services/ExternalAgentServer.ts:162-174` - Agent 委托
+
+## 10. NuPI 问题追踪 (2026-04-11)
+
+### 创建的 Issues
+| ID | 问题 |
+|----|------|
+| 14b9c729 | Pi 工具调用参数格式错误 (edit/write 缺少必需参数) |
+| 589f59d2 | Pi path ~ 路径扩展错误 |
+| 5776edb3 | 双模式委托代码 (已回答) |
+
+### NuPI 提交
+- `8f5ee9b1`: Enhanced prompt with clearer tool param examples (88/100分)
+
+### 状态
+- Piano ~80% 自主运行
+- 需要 NuPI 修复工具参数和路径扩展问题
