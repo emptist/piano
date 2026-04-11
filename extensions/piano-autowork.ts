@@ -243,15 +243,6 @@ export default function pianoAutoWork(pi: any): void {
       console.log('[Piano] Auto-delegating to Nezha/OpenCode...');
       await delegateToNezha(pi);
     } else {
-      console.log('[Piano] Manual mode. Use /piano-start to delegate.');
-    }
-  });
-
-  pi.on('session_shutdown', async () => {
-    console.log('[Piano] Session ending, NOT stopping OpenCode...');
-    console.log('[Piano] OpenCode will continue running for next session.');
-  });
-    } else {
       console.log('[Piano] Autonomous mode. /piano-start to delegate, /piano-tasks for tasks.');
     }
   });
