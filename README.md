@@ -144,7 +144,7 @@ const executor = router.route("你的任务", "任务描述");
 
 // 2. 使用 TaskCoordinator 执行 OpenCode 任务
 const coordinator = new TaskCoordinator({
-  opencodeUrl: "http://localhost:4097",
+  opencodeUrl: "http://localhost:5111",
   usePi: true,
 });
 
@@ -182,7 +182,7 @@ const db = new DatabaseClient({ connectionString: "postgresql://..." });
 
 // 创建 Piano 心跳服务
 const piano = new PianoHeartbeatService(db, {
-  opencodeUrl: "http://localhost:4097",
+  opencodeUrl: "http://localhost:5111",
   useOpenCode: true,
   usePi: true,
   enablePi: true,
@@ -234,7 +234,7 @@ const complex = router.route("实现新功能", "实现完整的用户认证系�
 import { TaskCoordinator } from "@nezha/piano";
 
 const coordinator = new TaskCoordinator({
-  opencodeUrl: "http://localhost:4097",
+  opencodeUrl: "http://localhost:5111",
   usePi: true,
 });
 

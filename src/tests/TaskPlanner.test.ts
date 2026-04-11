@@ -95,8 +95,8 @@ describe('TaskPlanner', () => {
       const router = new TaskRouter({ useOpenCode: true, usePi: true, selfCapability: 'pi' });
       const planner = new TaskPlanner();
 
-      const executor = router.route('Check logs and refactor database', 'Complex reminder task');
-      expect(executor).toBe('pi');
+      const result = router.route('Check logs and refactor database', 'Complex reminder task');
+      expect(result.executor).toBe('pi');
 
       const plan = planner.plan(
         { id: '1', title: 'Check logs and refactor database', priority: 5 },
@@ -110,8 +110,8 @@ describe('TaskPlanner', () => {
       const router = new TaskRouter({ useOpenCode: true, usePi: true, selfCapability: 'pi' });
       const planner = new TaskPlanner();
 
-      const executor = router.route('Check logs', 'Simple task');
-      expect(executor).toBe('pi');
+      const result = router.route('Check logs', 'Simple task');
+      expect(result.executor).toBe('pi');
 
       const plan = planner.plan({ id: '1', title: 'Check logs', priority: 5 }, 'pi');
       expect(plan.shouldDelegate).toBe(false);

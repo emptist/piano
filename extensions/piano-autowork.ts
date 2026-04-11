@@ -1,4 +1,5 @@
 const NEZHA_API = 'http://127.0.0.1:5999';
+const OPENCODE_PORT = '5111';
 const MAX_RETRIES = 6;
 const RETRY_DELAY_MS = 5000;
 
@@ -6,13 +7,13 @@ let openCodePid: number | null = null;
 let openCodePort: string | null = null;
 
 function getOpenCodePort(): string {
-  return openCodePort || '4097';
+  return openCodePort || OPENCODE_PORT;
 }
 
 function findOpenCodeProcess(): { pid: number; port: string } | null {
   try {
     const { execSync } = require('child_process');
-    const result = execSync('pgrep -f "opencode.*serve|opencode server" -l', { encoding: 'utf8' });
+    const result = execSync(`pgrep -f "opencode.*serve.*--port.*${OPENCODE_PORT}" -l`, { encoding: 'utf8' });
     const match = result.match(/(\d+)/);
     if (match) {
       const pid = parseInt(match[1], 10);
@@ -41,18 +42,17 @@ async function startOpenCode(): Promise<boolean> {
   try {
     console.log('[Piano] Starting OpenCode Server...');
     const { spawn } = await import('child_process');
-    const child = spawn('opencode', ['serve'], { 
+    const child = spawn('opencode', ['serve', '--port', OPENCODE_PORT], { 
       detached: false, 
       stdio: 'pipe',
-      env: { ...process.env, OPENCODE_PORT: '4097' }
     });
     openCodePid = child.pid || null;
-    openCodePort = '4097';
+    openCodePort = OPENCODE_PORT;
     
     await new Promise((resolve) => {
       child.stdout?.on('data', (data) => {
         const msg = data.toString();
-        if (msg.includes('listening') || msg.includes('4097')) {
+        if (msg.includes('listening') || msg.includes(OPENCODE_PORT)) {
           setTimeout(resolve, 2000);
         }
       });

@@ -135,3 +135,35 @@ Nezha → NuPI → Piano → OpenCode
 - `../refers/pi-mono/packages/coding-agent/examples/extensions/subagent/`
 - `../refers/opencode/packages/opencode/src/`
 - `nupi/docs/DUAL_WORK_MODE.md`
+
+## 7. Port 选择决策 (2026-04-11)
+
+### 问题
+- 4097 端口被 macOS 系统占用，导致 Piano 无法可靠检测和管理自己的 OpenCode 实例
+- OpenCode App 随机使用 5 位数端口 (如 50494)，与 Piano 启动的实例冲突
+
+### 决策
+- 使用 **5111** 作为 Piano OpenCode 专用端口
+- 验证结果: 无冲突 (不在 /etc/services，无 lsof/netstat 监听)
+
+### 代码修改
+- `extensions/piano-autowork.ts`: `OPENCODE_PORT = '5111'`，添加 `--port` 参数
+- `README.md`: 更新 3 处端口引用
+
+## 8. TaskRouter 智能路由 (2026-04-11)
+
+### 实现
+- 新增 `RoutingResult` 返回类型，包含 `executor` + `opencodeAgent`
+- `OpenCodeAgentType`: `explore` | `plan` | `build` | `general`
+- 基于关键词模式匹配自动推断最佳 agent 类型
+
+### 示例
+```typescript
+const result = router.route("Analyze codebase and find bugs", "...");
+result.executor       // "opencode"
+result.opencodeAgent  // "explore"
+result.reason         // "Requires code manipulation"
+```
+
+### 测试
+- 22 tests passing
