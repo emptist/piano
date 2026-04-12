@@ -83,3 +83,61 @@ private extractOutput(result: SingleResult): string {
 - `nupi/src/services/ExternalDelegate.ts` - 源文件
 - `nupi/dist/services/ExternalDelegate.js` - 编译输出
 - `piano/extensions/nupi-autowork.ts` - 使用方 (通过 import)
+
+---
+
+# 架构修复: 移除全局扩展污染
+
+**Date:** 2026-04-13
+
+## 问题
+
+运行 `pi` 时报错：
+```
+Error: Failed to load extension "...nupi-autowork.ts": Cannot find module '@nezha/nupi'
+```
+
+原因：Pi 被 NuPI/Piano 依赖污染。
+
+## 根因
+
+错误架构：
+```
+Pi (standalone agent)
+    ↓ wrongly infected by
+NuPI/Piano dependencies (@nezha/nupi)
+```
+
+`~/.pi/agent/extensions/` 包含外部项目代码，通过 symlink 引用时，`@nezha/nupi` 包在 Pi 的运行时无法解析。
+
+## 解决方案
+
+移除全局扩展符号链接，每个项目使用自己的本地扩展：
+
+```bash
+# 移除
+rm ~/.pi/agent/extensions/nupi-autowork.ts
+rm ~/.pi/agent/extensions/nupi-tools.ts
+```
+
+正确架构：
+- Pi: 独立运行，无外部依赖
+- NuPI 项目: 使用 `nupi/extensions/` 本地扩展
+- Piano 项目: 使用 `piano/extensions/` 本地扩展
+
+## 当前状态
+
+```
+~/.pi/agent/extensions/  (仅内置文件)
+├── AGENTS.md
+├── MEMORY.md
+├── README.md
+├── SOUL.md
+└── USER.md
+```
+
+## 教训
+
+1. **不要污染全局扩展** - 每个项目管理自己的扩展
+2. **独立架构** - Pi 应该是独立的，不依赖外部包
+3. **使用绝对路径** - 如果必须引用，用绝对路径而非包名
