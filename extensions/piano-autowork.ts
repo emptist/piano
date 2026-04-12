@@ -79,18 +79,11 @@ async function ensureOpenCodeRunning(): Promise<boolean> {
 }
 
 function cleanupOpenCode(): void {
-  if (openCodePid) {
-    try {
-      process.kill(openCodePid);
-      console.log(`[Piano] Stopped OpenCode (pid: ${openCodePid}).`);
-    } catch {}
-    openCodePid = null;
-  }
+  // Using exec() with & - can't track PID, let system handle cleanup
+  console.log('[Piano] OpenCode cleanup (handled by system).');
 }
 
 process.on('exit', cleanupOpenCode);
-process.on('SIGINT', () => { cleanupOpenCode(); process.exit(0); });
-process.on('SIGTERM', () => { cleanupOpenCode(); process.exit(0); });
 
 let apiHealthy: boolean | null = null;
 
