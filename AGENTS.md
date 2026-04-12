@@ -9,11 +9,13 @@
 ## Agent ID
 
 ```
-S-{project}-{context}
-Example: S-piano-develop
+S-{source}-{project}-{context}
+Example: S-nezha-piano-develop
 ```
 
 ## 架构
+
+Piano = NuPI + OpenCode (while NuPI = nezha + pi)
 
 ```
 Piano (Top) → NuPI (Middle) → OpenCode/Local Pi (Execution)

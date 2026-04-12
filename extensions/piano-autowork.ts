@@ -3,7 +3,6 @@ const OPENCODE_PORT = '5111';
 const MAX_RETRIES = 6;
 const RETRY_DELAY_MS = 5000;
 
-let openCodePid: number | null = null;
 let openCodePort: string | null = null;
 
 function getOpenCodePort(): string {
@@ -41,26 +40,20 @@ async function testOpenCodeAccessible(): Promise<boolean> {
 async function startOpenCode(): Promise<boolean> {
   try {
     console.log('[Piano] Starting OpenCode Server...');
-    const { spawn } = await import('child_process');
-    const child = spawn('opencode', ['serve', '--port', OPENCODE_PORT], { 
-      detached: false, 
-      stdio: 'pipe',
-    });
-    openCodePid = child.pid || null;
-    openCodePort = OPENCODE_PORT;
+    const { exec } = require('child_process');
     
-    await new Promise((resolve) => {
-      child.stdout?.on('data', (data) => {
-        const msg = data.toString();
-        if (msg.includes('listening') || msg.includes(OPENCODE_PORT)) {
-          setTimeout(resolve, 2000);
+    return new Promise((resolve) => {
+      exec(`OPENCODE_SERVER_USERNAME= OPENCODE_SERVER_PASSWORD= opencode serve --port ${OPENCODE_PORT} &`);
+      setTimeout(async () => {
+        if (await testOpenCodeAccessible()) {
+          console.log(`[Piano] OpenCode started on port ${OPENCODE_PORT}.`);
+          resolve(true);
+        } else {
+          console.error('[Piano] OpenCode failed to start.');
+          resolve(false);
         }
-      });
-      setTimeout(() => resolve(true), 5000);
+      }, 3000);
     });
-    
-    console.log(`[Piano] OpenCode started (pid: ${openCodePid}, port: ${openCodePort}).`);
-    return true;
   } catch (e) {
     console.error('[Piano] Failed to start OpenCode:', e);
     return false;
@@ -143,30 +136,12 @@ async function apiGet(path: string): Promise<{ error?: string; data?: unknown }>
 
 async function reportNezhaNotRunning(): Promise<void> {
   try {
-    const { spawn } = await import('child_process');
-    const title = `Nezha API 未运行 (递归 Issue - ${new Date().toISOString().slice(0,10)})`;
-    const description = `## 递归问题
-Piano 检测到 Nezha API Server 未运行。
-NuPI 应该自动启动它，但似乎又出现了相同问题。
-
-## 时间
-${new Date().toISOString()}
-
-## 之前 Issue
-bb9bbe87 - NuPI 启动时未检测和自动启动 Nezha
-
-## 请 NuPI 确认并修复`;
-
-    spawn('node', [
-      '/Users/jk/gits/hub/tools_ai/nezha/dist/cli/index.js',
-      'areflect',
-      `[ISSUE] title: ${title} description: ${description} severity: critical`
-    ], {
-      cwd: '/Users/jk/gits/hub/tools_ai/nezha',
-      detached: true,
-      stdio: 'ignore'
-    });
-    console.log('[Piano] Created recursive Issue for NuPI');
+    await apiPost('issues', {
+      title: `Nezha API 未运行 (递归 Issue - ${new Date().toISOString().slice(0,10)})`,
+      description: `## 递归问题\nPiano 检测到 Nezha API Server 未运行。\nNuPI 应该自动启动它。\n\n## 时间\n${new Date().toISOString()}`,
+      severity: 'critical',
+    } as any);
+    console.log('[Piano] Created Issue for NuPI');
   } catch (e) {
     console.error('[Piano] Failed to create Issue:', e);
   }
