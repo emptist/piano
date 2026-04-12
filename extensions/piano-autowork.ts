@@ -51,8 +51,10 @@ async function startOpenCode(): Promise<boolean> {
     const { exec } = require("child_process");
 
     return new Promise((resolve) => {
-      // Try without env vars first - see if auth is needed
-      exec(`opencode serve --port ${OPENCODE_PORT} &`);
+      exec(`OPENCODE_SERVER_USERNAME= OPENCODE_SERVER_PASSWORD= opencode serve --port ${OPENCODE_PORT} &`);
+      // Tried without env vars first - see if auth is needed
+      // but no success
+      //exec(`opencode serve --port ${OPENCODE_PORT} &`);
       setTimeout(async () => {
         if (await testOpenCodeAccessible()) {
           console.log(`[Piano] OpenCode started on port ${OPENCODE_PORT}.`);
