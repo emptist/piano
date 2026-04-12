@@ -1,271 +1,85 @@
-# Upstream Fix: Command Injection in PiExecutor (C4/X2)
+# ExternalDelegate API 修复全过程
 
-**Target:** `nezha/src/services/PiExecutor.ts`  
-**Also affects:** `nupi/src/services/PiExecutor.ts` (if independent copy)  
-**Date:** 2026-04-03
+**Issue:** #3ff28b4b  
+**Date:** 2026-04-13  
+**Severity:** High
 
 ---
 
-## Problem
+## 问题
 
-All three `execute*()` methods use **string interpolation** to build shell commands, passing user-controlled input (`taskDescription`, `systemPrompt`) into a shell command string:
+NuPI ExternalDelegate delegation 到 OpenCode 失败，返回 HTTP 400 错误。
 
+---
+
+## 根因分析
+
+### 1. 复制代码导致不同步 (根本原因)
+Piano 复制了 ExternalDelegate 的 inline 配置而不是 import @nezha/nupi：
 ```typescript
-const escapedDescription = taskDescription.replace(/"/g, '\\"');
-const command = `${this.piPath} execute --model ${this.defaultModel} --print "${escapedDescription}"`;
-await execAsync(command, { ... });
+// piano/extensions/nupi-autowork.ts (line 259-278)
+externalDelegate = createExternalDelegate({
+  mode: "external",
+  agents: { opencode: { url: "...", tools: [...] } }
+});
+```
+没有使用 import，导致修复不同步。
+
+### 2. 编译输出位置错误
+`tsc` 输出到 `dist/services/services/` 而不是 `dist/services/`，导致加载旧代码：
+```bash
+ls dist/services/services/ExternalDelegate.js  # 存在但未被加载
+ls dist/services/ExternalDelegate.js    # 不存在
 ```
 
-Only double quotes are escaped. The following characters break out of the shell context:
-- Backticks `` ` `` — command substitution
-- `$()` — command substitution
-- `\n` (newline) — command separator
-- `;` — command separator
-- `\` — escape character bypass
+### 3. 没有验证编译结果
+每次修改后没有检查 dist 文件实际内容，时间戳相同被误认为新文件。
 
-**Impact:** If `taskDescription` comes from untrusted input (DB, API), arbitrary commands execute on the host.
+### 4. 成功定义不完整
+只检查 `exitCode===0` 但 OpenCode 返回 `info.finish==="stop"`。
 
 ---
 
-## Solution
+## 修复内容
 
-Replace `exec()` + string interpolation with `spawn()` + argument array with `{ shell: false }`. The OS kernel handles argument boundary separation — no escaping needed.
-
-### Full Replacement File Content for `nezha/src/services/PiExecutor.ts`
-
+### 1. 使用 minimal payload
 ```typescript
-import { spawn } from 'child_process';
-import { logger } from '../utils/logger.js';
+const taskPayload = {
+  parts: [{ type: 'text', text: task }],
+};
+```
 
-export interface PiTaskResult {
-  success: boolean;
-  output: string;
-  message: string;
-  durationMs: number;
-  toolsCreated?: string[];
-}
+### 2. 成功判断
+```typescript
+const success = result.exitCode === 0 || info.info?.finish === 'stop';
+```
 
-export interface PiConfig {
-  piPath?: string;
-  model?: string;
-  env?: Record<string, string>;
-}
-
-function execSafe(
-  command: string,
-  args: string[],
-  options: { timeout: number; env: Record<string, string> },
-): Promise<{ stdout: string; stderr: string }> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
-      shell: false,
-      timeout: options.timeout,
-      env: options.env,
-    });
-
-    let stdout = '';
-    let stderr = '';
-
-    child.stdout?.on('data', (data: Buffer) => { stdout += data.toString(); });
-    child.stderr?.on('data', (data: Buffer) => { stderr += data.toString(); });
-
-    const timer = setTimeout(() => {
-      child.kill();
-      reject(new Error(`Pi execution timeout after ${options.timeout}ms`));
-    }, options.timeout);
-
-    child.on('close', (code) => {
-      clearTimeout(timer);
-      if (code === 0 || code === null) {
-        resolve({ stdout, stderr });
-      } else {
-        reject(new Error(`Process exited with code ${code}: ${stderr}`));
-      }
-    });
-
-    child.on('error', reject);
-  });
-}
-
-export class PiExecutor {
-  private readonly piPath: string;
-  private readonly defaultModel: string;
-  private readonly env: Record<string, string>;
-
-  constructor(config: PiConfig = {}) {
-    this.piPath = config.piPath || 'pi';
-    this.defaultModel = config.model || 'zai:glm-4.5-flash';
-    this.env = config.env || {};
+### 3. 输出提取
+```typescript
+private extractOutput(result: SingleResult): string {
+  // Try direct parts property
+  const r = result as unknown as { parts?: Array<{ text?: string }> };
+  if (r.parts) {
+    return r.parts.filter(p => !!p.text).map(p => p.text).join('\n');
   }
-
-  async execute(taskDescription: string, timeoutMs: number = 600000): Promise<PiTaskResult> {
-    const startTime = Date.now();
-
-    try {
-      logger.info(`[PiExecutor] Executing task (model: ${this.defaultModel})`);
-
-      const { stdout, stderr } = await execSafe(
-        this.piPath,
-        ['execute', '--model', this.defaultModel, '--print', taskDescription],
-        { timeout: timeoutMs, env: { ...process.env, ...this.env } },
-      );
-
-      const durationMs = Date.now() - startTime;
-
-      const output = stdout || stderr;
-      const success =
-        !output.toLowerCase().includes('error') && !output.toLowerCase().includes('failed');
-
-      return {
-        success,
-        output,
-        message: success ? 'Task completed successfully' : output.substring(0, 500),
-        durationMs,
-      };
-    } catch (error) {
-      const durationMs = Date.now() - startTime;
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-
-      logger.error(`[PiExecutor] Failed: ${errorMessage}`);
-
-      return {
-        success: false,
-        output: errorMessage,
-        message: errorMessage,
-        durationMs,
-      };
-    }
-  }
-
-  async executeJson(taskDescription: string, timeoutMs: number = 600000): Promise<PiTaskResult> {
-    const startTime = Date.now();
-
-    try {
-      logger.info(`[PiExecutor] Executing JSON task (model: ${this.defaultModel})`);
-
-      const { stdout, stderr } = await execSafe(
-        this.piPath,
-        ['execute', '--model', this.defaultModel, '--mode', 'json', taskDescription],
-        { timeout: timeoutMs, env: { ...process.env, ...this.env } },
-      );
-
-      const durationMs = Date.now() - startTime;
-
-      const output = stdout || stderr;
-      const success = !output.toLowerCase().includes('error');
-
-      const toolsCreated = this.extractToolsCreated(output);
-
-      return {
-        success,
-        output,
-        message: success ? 'Task completed' : 'Task failed',
-        durationMs,
-        toolsCreated,
-      };
-    } catch (error) {
-      const durationMs = Date.now() - startTime;
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-
-      return {
-        success: false,
-        output: errorMessage,
-        message: errorMessage,
-        durationMs,
-      };
-    }
-  }
-
-  private extractToolsCreated(output: string): string[] {
-    const tools: string[] = [];
-    const toolPattern = /(?:created|registered|new tool):?\s*(\w+)/gi;
-    let match;
-    while ((match = toolPattern.exec(output)) !== null) {
-      if (match[1]) tools.push(match[1]);
-    }
-    return tools;
-  }
-
-  async executeWithPrompt(
-    systemPrompt: string,
-    task: string,
-    timeoutMs: number = 600000
-  ): Promise<PiTaskResult> {
-    const startTime = Date.now();
-
-    try {
-      logger.info(`[PiExecutor] Executing with system prompt (model: ${this.defaultModel})`);
-
-      const { stdout, stderr } = await execSafe(
-        this.piPath,
-        ['--system-prompt', systemPrompt, '--print', task],
-        { timeout: timeoutMs, env: { ...process.env, ...this.env } },
-      );
-
-      const durationMs = Date.now() - startTime;
-
-      const output = stdout || stderr;
-      const success =
-        !output.toLowerCase().includes('error') && !output.toLowerCase().includes('failed');
-
-      return {
-        success,
-        output,
-        message: success ? 'Task completed successfully with system prompt' : output.substring(0, 500),
-        durationMs,
-      };
-    } catch (error) {
-      const durationMs = Date.now() - startTime;
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-
-      logger.error(`[PiExecutor] Failed with system prompt: ${errorMessage}`);
-
-      return {
-        success: false,
-        output: errorMessage,
-        message: errorMessage,
-        durationMs,
-      };
-    }
-  }
-}
-
-let piExecutorInstance: PiExecutor | null = null;
-
-export function getPiExecutor(config?: PiConfig): PiExecutor {
-  if (!piExecutorInstance) {
-    piExecutorInstance = new PiExecutor(config);
-  }
-  return piExecutorInstance;
+  return result.stderr || '';
 }
 ```
 
 ---
 
-## Changes Summary
+## 教训
 
-| What Changed | Why |
-|---|---|
-| `import { exec } from 'child_process'` + `promisify(exec)` | → `import { spawn } from 'child_process'` | `exec` spawns a shell; `spawn` with `{ shell: false }` does not |
-| String interpolation: `` `${cmd} "${arg}"` `` | → Array: `[cmd, '--flag', arg]` | OS kernel enforces arg boundaries; no escaping possible |
-| `taskDescription.replace(/"/g, '\\"')` | → Removed entirely | No longer needed when using argument arrays |
-| New `execSafe()` helper | Wraps `spawn` in a Promise with proper cleanup | Replaces `execAsync` behavior (timeout, env passthrough) |
-
-## Methods Affected (3 total)
-
-| Method | Old Pattern (line ~) | New Pattern |
-|--------|---------------------|-------------|
-| `execute()` | `execAsync(\`\${path} --print "\${desc}"\`)` | `execSafe(path, ['execute', '--model', m, '--print', desc])` |
-| `executeJson()` | same + `'--mode json'` | same + `'--mode', 'json'` |
-| `executeWithPrompt()` | `--system-prompt` + `--print` as strings | both passed as separate args |
+1. **不要复制代码** - 始终使用 import
+2. **强制重新编译** - `rm -rf dist && npx tsc`
+3. **验证关键字符串** - `grep taskPayload dist/...`
+4. **端到端测试** - 用 curl 测试 API
+5. **检查所有成功字段** - response 结构可能有多种形式
 
 ---
 
-## For Nupi
+## 相关文件
 
-After fixing nezha:
-1. Check if `nupi/src/services/PiExecutor.ts` is an **independent copy** or just re-exports from nezha
-2. If it's its own copy → apply the **same replacement**
-3. If it imports/re-exports from `@nezha/...` → **no changes needed**, fix propagates via dependency
-
-Check with: `grep -n "from.*nezha" nupi/src/services/PiExecutor.ts`
+- `nupi/src/services/ExternalDelegate.ts` - 源文件
+- `nupi/dist/services/ExternalDelegate.js` - 编译输出
+- `piano/extensions/nupi-autowork.ts` - 使用方 (通过 import)
