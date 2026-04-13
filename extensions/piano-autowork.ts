@@ -45,13 +45,45 @@ async function testOpenCodeAccessible(): Promise<boolean> {
   }
 }
 
+async function checkOpenCodeUsage(): Promise<string> {
+  try {
+    const port = getOpenCodePort();
+    const res = await fetch(`http://127.0.0.1:${port}/session/status`, {
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) return `Status check failed: HTTP ${res.status}`;
+    const data = (await res.json()) as Record<
+      string,
+      { type?: string; message?: string; next?: number }
+    >;
+    const entries = Object.entries(data);
+    if (entries.length === 0) return "No active sessions (idle).";
+    const lines = entries.map(([id, s]) => {
+      const shortId = id.slice(0, 12);
+      if (
+        s.type === "retry" &&
+        s.message?.includes("Free usage exceeded")
+      ) {
+        const resetTime = s.next
+          ? new Date(s.next).toLocaleTimeString()
+          : "unknown";
+        return `  ${shortId}: FREE USAGE EXCEEDED (resets ${resetTime})`;
+      }
+      return `  ${shortId}: ${s.type || "unknown"} - ${(s.message || "").slice(0, 60)}`;
+    });
+    return lines.join("\n");
+  } catch (e) {
+    return `Error: ${e instanceof Error ? e.message : String(e)}`;
+  }
+}
+
 async function startOpenCode(): Promise<boolean> {
   try {
     console.log("[Piano] Starting OpenCode Server...");
     const { exec } = require("child_process");
 
     return new Promise((resolve) => {
-      exec(`OPENCODE_SERVER_USERNAME= OPENCODE_SERVER_PASSWORD= opencode serve --port ${OPENCODE_PORT} &`);
+      exec(`HTTP_PROXY= HTTPS_PROXY= ALL_PROXY= OPENCODE_SERVER_USERNAME= OPENCODE_SERVER_PASSWORD= opencode serve --port ${OPENCODE_PORT} &`);
       // Tried without env vars first - see if auth is needed
       // but no success
       //exec(`opencode serve --port ${OPENCODE_PORT} &`);
@@ -197,6 +229,12 @@ async function delegateToNezha(pi: any): Promise<string> {
     return "[Piano] Nezha API not available. NuPI should handle this. Use /piano-start to retry.";
   }
 
+  const usageStatus = await checkOpenCodeUsage();
+  if (usageStatus.includes("FREE USAGE EXCEEDED")) {
+    console.log("[Piano] OpenCode free usage exceeded. Cannot delegate.");
+    return `[Piano] Cannot delegate - OpenCode free usage exceeded.\n${usageStatus}\nWait for reset or subscribe at https://opencode.ai/go`;
+  }
+
   // 不再自动创建 Continuous Improvement Cycle - 委托给 NuPI 自己决定
   const result = await apiPost("tasks", {
     title: "Piano Delegate: Review codebase and find improvements",
@@ -249,6 +287,11 @@ export default function pianoAutoWork(pi: any): void {
   pi.registerCommand("piano-start", {
     description: "Delegate work to Nezha/OpenCode (with retry)",
     handler: async () => delegateToNezha(pi),
+  });
+
+  pi.registerCommand("piano-usage", {
+    description: "Check OpenCode free usage status",
+    handler: async () => checkOpenCodeUsage(),
   });
 
   pi.registerCommand("piano-tasks", {

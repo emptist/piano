@@ -28,7 +28,7 @@ export { ExternalAgentServer, createExternalAgentServer } from './services/Exter
 export type { ExternalAgentServerConfig, ExternalAgentConfig, ExternalAgentRequest, ExternalAgentResponse } from './services/ExternalAgentServer.js';
 
 export { PianoMcpService, createPianoMcpService } from './services/PianoMcpService.js';
-export type { PianoMcpConfig, McpServerConfig, McpServerStatus } from './services/PianoMcpService.js';
+export type { PianoMcpConfig } from './services/PianoMcpService.js';
 
 export { PianoSkillService, createPianoSkillService } from './services/PianoSkillService.js';
 export type { PianoSkillConfig, SkillInfo } from './services/PianoSkillService.js';

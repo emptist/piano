@@ -29,21 +29,6 @@ interface McpConfig {
   url?: string;
 }
 
-export interface McpServerConfig {
-  name: string;
-  command: string;
-  args?: string[];
-  env?: Record<string, string>;
-}
-
-export interface McpServerStatus {
-  name: string;
-  status: 'connected' | 'disconnected' | 'error';
-  tools?: string[];
-  resources?: string[];
-  error?: string;
-}
-
 export class PianoMcpService {
   private config: PianoMcpConfig;
   private authHeader: Record<string, string> = {};

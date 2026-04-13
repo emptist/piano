@@ -75,6 +75,10 @@ nezha meeting discuss     # 创建会议
 nezha meeting list        # 查看会议
 ```
 
+## 已知问题
+
+- **路径双倍问题**: Pi resolveToCwd() 对某些绝对路径会重复前缀。建议对外部 agent 使用绝对路径时，确保 CWD 设置正确。
+
 ## 核心原则
 
 - **自治**: 持续查找和完成任务,不要询问人类

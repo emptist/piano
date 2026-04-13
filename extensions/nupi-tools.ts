@@ -9,6 +9,17 @@
 
 import type { ExtensionAPI } from '@mariozechner/pi-coding-agent';
 import { getNuPIClient } from '@nezha/nupi';
+import { execSync } from 'child_process';
+
+const NEZHA_CLI = process.env.NEZHA_CLI || 'nezha';
+
+function runNezhaCli(args: string): string {
+  try {
+    return execSync(`${NEZHA_CLI} ${args}`, { encoding: 'utf-8', timeout: 15000 });
+  } catch (e: any) {
+    throw new Error(`CLI failed: ${e.message?.split('\n')?.[0] || e.message}`);
+  }
+}
 
 export default function nupiTools(pi: ExtensionAPI): void {
   const api = getNuPIClient();
@@ -124,7 +135,72 @@ Actions:
     },
   });
 
+  pi.registerCommand('nupi-meetings', {
+    description: 'List active meetings',
+    handler: async () => {
+      try {
+        return runNezhaCli('meeting db list --status active');
+      } catch (error) {
+        return `[NuPI] Error: ${error instanceof Error ? error.message : String(error)}`;
+      }
+    },
+  });
+
+  pi.registerCommand('nupi-meeting', {
+    description: 'Show meeting details (arg: meeting UUID)',
+    handler: async (id: string) => {
+      try {
+        if (!id.trim()) return 'Usage: nupi-meeting <uuid>';
+        return runNezhaCli(`meeting db show ${id.trim()}`);
+      } catch (error) {
+        return `[NuPI] Error: ${error instanceof Error ? error.message : String(error)}`;
+      }
+    },
+  });
+
+  pi.registerCommand('nupi-meeting-discuss', {
+    description: 'Create a meeting discussion (arg: topic)',
+    handler: async (topic: string) => {
+      try {
+        if (!topic.trim()) return 'Usage: nupi-meeting-discuss <topic>';
+        return runNezhaCli(`meeting db create "${topic.trim()}"`);
+      } catch (error) {
+        return `[NuPI] Error: ${error instanceof Error ? error.message : String(error)}`;
+      }
+    },
+  });
+
+  pi.registerCommand('nupi-meeting-opinion', {
+    description: 'Add opinion to meeting (arg: <uuid> <perspective> [--position support|oppose|neutral])',
+    handler: async (args: string) => {
+      try {
+        const parts = args.trim().split(/\s+/);
+        const meetingId = parts[0];
+        if (!meetingId) return 'Usage: nupi-meeting-opinion <uuid> <perspective> [--position support|oppose|neutral]';
+        const rest = parts.slice(1).join(' ');
+        return runNezhaCli(`meeting db opinion ${meetingId} "${rest}"`);
+      } catch (error) {
+        return `[NuPI] Error: ${error instanceof Error ? error.message : String(error)}`;
+      }
+    },
+  });
+
+  pi.registerCommand('nupi-meeting-consensus', {
+    description: 'Record consensus for meeting (arg: <uuid> <consensus text>)',
+    handler: async (args: string) => {
+      try {
+        const parts = args.trim().split(/\s+/);
+        const meetingId = parts[0];
+        if (!meetingId) return 'Usage: nupi-meeting-consensus <uuid> <text>';
+        const text = parts.slice(1).join(' ');
+        return runNezhaCli(`meeting db consensus ${meetingId} "${text}"`);
+      } catch (error) {
+        return `[NuPI] Error: ${error instanceof Error ? error.message : String(error)}`;
+      }
+    },
+  });
+
   console.log(
-    '[NuPI] Tools loaded (HTTP API mode): nupi-tasks, nupi-task-take, nupi-task-done, nupi-issues, nupi-learn, nupi-search, nupi-status, nupi-work'
+    '[NuPI] Tools loaded (HTTP API mode): nupi-tasks, nupi-task-take, nupi-task-done, nupi-issues, nupi-learn, nupi-search, nupi-status, nupi-work, nupi-meetings, nupi-meeting, nupi-meeting-discuss, nupi-meeting-opinion, nupi-meeting-consensus'
   );
 }
