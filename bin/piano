@@ -19,7 +19,7 @@ PIANO_EXT="$SCRIPT_DIR/../extensions/piano-tools.ts"
 PIANO_AUTOWORK="$SCRIPT_DIR/../extensions/piano-autowork.ts"
 PIANO_NUPI="$SCRIPT_DIR/../extensions/nupi-tools.ts"
 PIANO_NUPI_AUTOWORK="$SCRIPT_DIR/../extensions/nupi-autowork.ts"
-NUPI_EXT="$HOME/.pi/agent/extensions/nupi-tools.ts"
+NUPI_EXT="$SCRIPT_DIR/../../nupi/extensions/nupi-tools.ts"
 
 show_help() {
     cat <<EOF
