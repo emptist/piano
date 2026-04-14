@@ -18,9 +18,9 @@ SCRIPT_DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
 PIANO_EXT="$SCRIPT_DIR/../extensions/piano-tools.ts"
 PIANO_AUTOWORK="$SCRIPT_DIR/../extensions/piano-autowork.ts"
 
-# NuPI extensions are now in nupi project, not copied here
-NUPI_TOOLS="$SCRIPT_DIR/../../nupi/extensions/nupi-tools.ts"
-NUPI_AUTOWORK="$SCRIPT_DIR/../../nupi/extensions/nupi-autowork.ts"
+# NuPI extensions: use npm package (2026-04-14)
+NUPI_TOOLS="$SCRIPT_DIR/../node_modules/@nezha/nupi/extensions/nupi-tools.ts"
+NUPI_AUTOWORK="$SCRIPT_DIR/../node_modules/@nezha/nupi/extensions/nupi-autowork.ts"
 
 show_help() {
     cat <<EOF

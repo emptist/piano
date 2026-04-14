@@ -16,6 +16,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
+  "bin": {
+    "piano": "./bin/piano"
+  },
   "keywords": [
     "nezha",
     "nupi",
