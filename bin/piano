@@ -17,9 +17,10 @@ SCRIPT_DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
 
 PIANO_EXT="$SCRIPT_DIR/../extensions/piano-tools.ts"
 PIANO_AUTOWORK="$SCRIPT_DIR/../extensions/piano-autowork.ts"
-PIANO_NUPI="$SCRIPT_DIR/../extensions/nupi-tools.ts"
-PIANO_NUPI_AUTOWORK="$SCRIPT_DIR/../extensions/nupi-autowork.ts"
-NUPI_EXT="$SCRIPT_DIR/../../nupi/extensions/nupi-tools.ts"
+
+# NuPI extensions are now in nupi project, not copied here
+NUPI_TOOLS="$SCRIPT_DIR/../../nupi/extensions/nupi-tools.ts"
+NUPI_AUTOWORK="$SCRIPT_DIR/../../nupi/extensions/nupi-autowork.ts"
 
 show_help() {
     cat <<EOF
@@ -34,7 +35,12 @@ EOF
 }
 
 run_piano() {
-    local PI_ARGS=("--no-extensions" "-e" "$PIANO_EXT" "-e" "$PIANO_AUTOWORK" "-e" "$PIANO_NUPI" "-e" "$PIANO_NUPI_AUTOWORK")
+    # NuPI extensions: use original from nupi project (not copied)
+    local PI_ARGS=("--no-extensions" 
+        "-e" "$PIANO_EXT" 
+        "-e" "$PIANO_AUTOWORK"
+        "-e" "$NUPI_TOOLS"
+        "-e" "$NUPI_AUTOWORK")
 
     if [ -t 1 ]; then
         exec pi "${PI_ARGS[@]}" "$@"
@@ -51,44 +57,17 @@ run_piano() {
 }
 
 run_piano_print() {
-    local API="http://127.0.0.1:5999"
-
-    echo "[Piano] Delegating to Nezha/OpenCode via API..."
-
-    if ! curl -s --max-time 3 "$API/health" >/dev/null 2>&1; then
-        echo "[Piano] Error: Nezha API not responding at $API" >&2
-        echo "[Piano] Run 'nezha start' first, then try again." >&2
-        return 1
-    fi
+    # Use CLI instead of HTTP API (2026-04-14)
+    echo "[Piano] Checking pending tasks via CLI..."
 
     echo ""
     echo "=== PENDING TASKS (sample) ==="
-    curl -s --max-time 5 "$API/tasks?status=PENDING&limit=5" | python3 -c "
-import sys,json
-try:
-    data=json.load(sys.stdin)
-    tasks=data.get('rows', data)
-    if not tasks: print('  (no pending tasks)'); sys.exit()
-    for t in tasks[:5]: print(f\"  [{t.get('priority','?')}] {t.get('title','?')[:60]}\")
-    if len(tasks)>5: print(f'  ... and {len(tasks)-5} more')
-except Exception as e: print(f'  (error: {e})')
-" 2>&1
+    nezha tasks --status PENDING --limit 5 2>&1 | head -10
 
     echo ""
-    echo "=== TRIGGERING IMPROVEMENT CYCLE ==="
-    local RESULT
-    RESULT=$(curl -s --max-time 5 -X POST "$API/tasks" \
-        -H 'Content-Type: application/json' \
-        -d '{"title":"Continuous Improvement Cycle","description":"Review codebase, find issues, create improvement tasks. PDCA.","priority":10,"category":"bugfix"}' \
-        2>&1)
-
-    if echo "$RESULT" | grep -q '"id"'; then
-        local TASK_ID
-        TASK_ID=$(echo "$RESULT" | python3 -c "import sys,json;d=json.load(sys.stdin);print(d.get('id', d.get('id', '?'))[:8])")
-        echo "[Piano] Done. Task $TASK_ID... queued for OpenCode."
-    else
-        echo "[Piano] Warning: $RESULT"
-    fi
+    echo "=== CREATING IMPROVEMENT TASK ==="
+    RESULT=$(nezha task-add "Continuous Improvement Cycle" "Review codebase, find issues, create improvement tasks. PDCA." --priority 10 2>&1)
+    echo "$RESULT"
 
     echo ""
     echo "[Piano] Done."
@@ -96,7 +75,7 @@ except Exception as e: print(f'  (error: {e})')
 
 run_nupi() {
     echo "[Piano] Starting NuPI mode..."
-    exec pi --no-extensions -e "$NUPI_EXT" "$@"
+    exec pi --no-extensions -e "$NUPI_TOOLS" "$@"
 }
 
 case "${1:-}" in
