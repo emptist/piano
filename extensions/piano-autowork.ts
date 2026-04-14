@@ -1,4 +1,6 @@
-const NEZHA_API = "http://127.0.0.1:5999";
+import { getNuPIClient } from "@nezha/nupi";
+import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+
 const OPENCODE_PORT = "5111";
 const MAX_RETRIES = 6;
 const RETRY_DELAY_MS = 5000;
@@ -60,10 +62,7 @@ async function checkOpenCodeUsage(): Promise<string> {
     if (entries.length === 0) return "No active sessions (idle).";
     const lines = entries.map(([id, s]) => {
       const shortId = id.slice(0, 12);
-      if (
-        s.type === "retry" &&
-        s.message?.includes("Free usage exceeded")
-      ) {
+      if (s.type === "retry" && s.message?.includes("Free usage exceeded")) {
         const resetTime = s.next
           ? new Date(s.next).toLocaleTimeString()
           : "unknown";
@@ -83,10 +82,9 @@ async function startOpenCode(): Promise<boolean> {
     const { exec } = require("child_process");
 
     return new Promise((resolve) => {
-      exec(`HTTP_PROXY= HTTPS_PROXY= ALL_PROXY= OPENCODE_SERVER_USERNAME= OPENCODE_SERVER_PASSWORD= opencode serve --port ${OPENCODE_PORT} &`);
-      // Tried without env vars first - see if auth is needed
-      // but no success
-      //exec(`opencode serve --port ${OPENCODE_PORT} &`);
+      exec(
+        `nohup sh -c 'HTTP_PROXY= HTTPS_PROXY= ALL_PROXY= OPENCODE_SERVER_USERNAME= OPENCODE_SERVER_PASSWORD= opencode serve --port ${OPENCODE_PORT}' > /tmp/piano-opencode.log 2>&1 &`,
+      );
       setTimeout(async () => {
         if (await testOpenCodeAccessible()) {
           console.log(`[Piano] OpenCode started on port ${OPENCODE_PORT}.`);
@@ -132,20 +130,27 @@ function cleanupOpenCode(): void {
 
 process.on("exit", cleanupOpenCode);
 
-let apiHealthy: boolean | null = null;
+function runNezha(args: string): string {
+  try {
+    return require("child_process").execSync(`nezha ${args}`, {
+      timeout: 5000,
+      encoding: "utf-8",
+    });
+  } catch (error) {
+    return "";
+  }
+}
 
 async function ensureNezhaRunning(): Promise<boolean> {
   try {
-    const res = await fetch(`${NEZHA_API}/health`, {
-      signal: AbortSignal.timeout(2000),
-    });
-    if (res.ok) {
-      console.log("[Piano] Nezha API already running.");
+    const output = runNezha("status");
+    if (output.includes("ok") || output.includes("running")) {
+      console.log("[Piano] Nezha already running.");
       return true;
     }
   } catch {}
 
-  console.log("[Piano] Nezha API not running. Creating Issue for NuPI...");
+  console.log("[Piano] Nezha not running. Creating Issue for NuPI...");
   await reportNezhaNotRunning();
   return false;
 }
@@ -155,14 +160,30 @@ async function apiPost(
   body: Record<string, unknown>,
 ): Promise<{ id?: string; error?: string }> {
   try {
-    const res = await fetch(`${NEZHA_API}/${path}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(5000),
-    });
-    if (!res.ok) return { error: `HTTP ${res.status}` };
-    return (await res.json()) as { id?: string; error?: string };
+    console.log(`[Piano] apiPost ${path}:`, JSON.stringify(body).slice(0, 200));
+
+    if (path === "tasks") {
+      const title = String(body.title);
+      const desc = (body.description as string) || "";
+      const priority = (body.priority as number) || 5;
+      const output = runNezha(
+        `task-add "${title}" "${desc}" --priority ${priority}`,
+      );
+      const match = output.match(/([a-f0-9-]{36})/);
+      return { id: match ? match[1] : "created" };
+    }
+    if (path === "issues") {
+      const title = String(body.title);
+      const desc = (body.description as string) || "";
+      const severity = (body.severity as string) || "medium";
+      const output = runNezha(
+        `issue-add "${title}" --severity ${severity} --description "${desc}"`,
+      );
+      const match = output.match(/([a-f0-9-]{36})/);
+      return { id: match ? match[1] : "created" };
+    }
+
+    return { error: `Unknown path: ${path}` };
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
     return { error: msg };
@@ -173,11 +194,20 @@ async function apiGet(
   path: string,
 ): Promise<{ error?: string; data?: unknown }> {
   try {
-    const res = await fetch(`${NEZHA_API}/${path}`, {
-      signal: AbortSignal.timeout(5000),
-    });
-    if (!res.ok) return { error: `HTTP ${res.status}` };
-    return { data: await res.json() };
+    if (path === "health") {
+      const output = runNezha("status");
+      return { data: { status: output.includes("ok") ? "ok" : "unknown" } };
+    }
+    if (path === "tasks") {
+      const output = runNezha("tasks --status PENDING --limit 5");
+      return { data: { rows: output } };
+    }
+    if (path === "issues") {
+      const output = runNezha("issue-list --limit 5");
+      return { data: { rows: output } };
+    }
+
+    return { error: `Unknown path: ${path}` };
   } catch (e: unknown) {
     return { error: e instanceof Error ? e.message : String(e) };
   }

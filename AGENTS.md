@@ -23,6 +23,28 @@ Piano (Top) → NuPI (Middle) → OpenCode/Local Pi (Execution)
         Nezha Database
 ```
 
+## 重要规则 (2026-04-14)
+
+### MCP - 只有 OpenCode 能用！
+
+- **MCP 只供 OpenCode 使用！**
+- Piano 禁用 MCP！
+- 使用 CLI: `nezha areflect`, `nezha meeting`, `nezha tasks`
+
+### 代码规则
+
+```bash
+# 正确 - CLI
+exec('nezha tasks')
+exec('nezha areflect "[LEARN] ...")
+
+# 正确 - npm import
+import { getNuPIClient } from '@nezha/nupi'
+
+# 错误 - HTTP fetch 到 5999
+fetch('http://127.0.0.1:5999/...')  # 禁止！
+```
+
 ## 会议系统 - 用于深度讨论 (重要!)
 
 当需要多AI共同分析问题时,使用会议而不是广播:
