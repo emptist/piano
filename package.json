@@ -1,7 +1,7 @@
 {
   "name": "@nezha/piano",
   "version": "0.1.0",
-  "description": "Piano = NuPI + OpenCode. 任务路由与协调层",
+  "description": "Piano = NuPI (package) + OpenCode (external). 任务路由与协调层,使用OpenCode作为执行引擎",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
