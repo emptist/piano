@@ -33,12 +33,16 @@ async function opencodeThink(question: string): Promise<string> {
   }
 
   if (!acpClient) {
-    return `External thinker not available. Question: ${question.substring(0, 100)}`;
+    return `External thinker (OpenCode ACP) not available. Question: ${question.substring(0, 100)}`;
   }
 
   try {
-    return await acpClient.think(question);
+    console.log("[Piano→OpenCode] Delegating thinking request...");
+    const result = await acpClient.think(question);
+    console.log("[Piano→OpenCode] Received response");
+    return result;
   } catch (e) {
+    console.error("[Piano→OpenCode] Error:", e);
     return `OpenCode error: ${e}`;
   }
 }

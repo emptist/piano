@@ -22,6 +22,7 @@ interface OpenCodeACPClientOptions {
   logLevel?: "DEBUG" | "INFO" | "WARN" | "ERROR";
   pure?: boolean;
   printLogs?: boolean;
+  verbose?: boolean;
 }
 
 export class OpenCodeACPClient {
@@ -107,8 +108,9 @@ export class OpenCodeACPClient {
   }
 
   private handleNotification(msg: unknown): void {
-    // Handle session updates, tool calls, etc.
-    console.log("[OpenCode ACP] Notification:", msg);
+    if (this.options.verbose) {
+      console.log("[OpenCode ACP] Notification:", msg);
+    }
   }
 
   private async sendRequest(method: string, params: unknown): Promise<unknown> {
