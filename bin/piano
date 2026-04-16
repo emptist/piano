@@ -1,4 +1,4 @@
 #!/bin/bash
 # Piano = Pi + Nezha + OpenCode routing
 
-exec pi -e "$(npm root -g)/@nezha/piano/dist/src/extension.js" "$@"
+NUPI_BYSELF=false exec pi -e "$(npm root -g)/@nezha/piano/dist/src/extension.js" "$@"

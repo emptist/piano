@@ -1,4 +1,6 @@
 import { Type } from "@sinclair/typebox";
+import { nupiExtension, setExternalThinker } from "@nezha/nupi";
+import { OpenCodeACPClient } from "./opencode-acp";
 
 function execNezha(args: string[]): Promise<string | null> {
   return new Promise((resolve) => {
@@ -13,6 +15,44 @@ function execNezha(args: string[]): Promise<string | null> {
       resolve(null);
     }
   });
+}
+
+let acpClient: OpenCodeACPClient | null = null;
+let acpInitPromise: Promise<void> | null = null;
+
+async function opencodeThink(question: string): Promise<string> {
+  // Lazy init ACP on first use
+  if (!acpInitPromise) {
+    acpInitPromise = initACP();
+  }
+
+  try {
+    await acpInitPromise;
+  } catch (e) {
+    // ACP init failed, continue without it
+  }
+
+  if (!acpClient) {
+    return `External thinker not available. Question: ${question.substring(0, 100)}`;
+  }
+
+  try {
+    return await acpClient.think(question);
+  } catch (e) {
+    return `OpenCode error: ${e}`;
+  }
+}
+
+setExternalThinker(opencodeThink);
+
+async function initACP() {
+  try {
+    acpClient = new OpenCodeACPClient(process.cwd());
+    await acpClient.start();
+  } catch (e) {
+    // ACP failed to start - will use fallback
+    acpClient = null;
+  }
 }
 
 const pianoThinkTool = {
@@ -48,23 +88,31 @@ const nezhaGetTasksTool = {
     const args = ["tasks", "--status", params.status || "PENDING", "--json"];
     const result = await execNezha(args);
     if (!result) {
-      return { content: [{ type: "text", text: "Failed to get tasks" }], details: {} };
+      return {
+        content: [{ type: "text", text: "Failed to get tasks" }],
+        details: {},
+      };
     }
     try {
       const tasks = JSON.parse(result);
       if (!tasks.length) {
         return { content: [{ type: "text", text: "No tasks" }], details: {} };
       }
-      const lines = tasks.slice(0, params.limit || 10).map(
-        (t: any, i: number) =>
-          `${i + 1}. [P${t.priority}] ${t.title} (${t.status})`,
-      );
+      const lines = tasks
+        .slice(0, params.limit || 10)
+        .map(
+          (t: any, i: number) =>
+            `${i + 1}. [P${t.priority}] ${t.title} (${t.status})`,
+        );
       return {
         content: [{ type: "text", text: lines.join("\n") }],
         details: {},
       };
     } catch {
-      return { content: [{ type: "text", text: "Failed to parse tasks" }], details: {} };
+      return {
+        content: [{ type: "text", text: "Failed to parse tasks" }],
+        details: {},
+      };
     }
   },
 };
@@ -84,7 +132,10 @@ const nezhaCreateTaskTool = {
     if (params.priority) args.push("--priority", String(params.priority));
     const result = await execNezha(args);
     if (!result) {
-      return { content: [{ type: "text", text: "Failed to create task" }], details: {} };
+      return {
+        content: [{ type: "text", text: "Failed to create task" }],
+        details: {},
+      };
     }
     return {
       content: [{ type: "text", text: `Task created: ${params.title}` }],
@@ -94,6 +145,7 @@ const nezhaCreateTaskTool = {
 };
 
 export default function pianoExtension(pi: any) {
+  nupiExtension(pi);
   pi.registerTool(nezhaGetTasksTool);
   pi.registerTool(nezhaCreateTaskTool);
   pi.registerTool(pianoThinkTool);
