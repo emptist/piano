@@ -23,31 +23,23 @@ node dist/cli/index.js db-migrate
 psql -U postgres -d nezha -c "\dt"
 ```
 
-### MCP Configuration
+### Piano uses CLI (No MCP!)
 
-Piano uses OpenCode MCP tools to communicate with nezha:
+Piano communicates with nezha via CLI commands:
 
 ```bash
-# Create or edit ~/.config/opencode/opencode.json
-cat > ~/.config/opencode/opencode.json << 'EOF'
-{
-  "$schema": "https://opencode.ai/config.json",
-  "model": "opencode/big-pickle",
-  "default_agent": "build",
-  "username": "yourname",
-  "mcp": {
-    "nezha-learning": {
-      "type": "local",
-      "command": ["node", "/path/to/nezha/dist/mcp/learning-server.js"]
-    },
-    "nezha-areflect": {
-      "type": "local",
-      "command": ["node", "/path/to/nezha/dist/mcp/areflect-server.js"]
-    }
-  }
-}
-EOF
+# Task operations
+nezha tasks
+nezha task-add "title" "description" --priority 8
+
+# Learning
+nezha learn "insight"
+
+# Meetings
+nezha meeting discuss "topic" "description"
 ```
+
+No MCP needed - just CLI like `ls/cd/grep`!
 
 ### Setup
 

@@ -47,11 +47,11 @@ nezha meeting discuss "Topic" "Description"
 
 ### Piano Tools
 
-| Tool | Purpose |
-|------|---------|
-| `piano_think` | Route to OpenCode for deep analysis |
-| `nezha_get_tasks` | View pending tasks |
-| `nezha_create_task` | Create new task |
+| Tool                | Purpose                             |
+| ------------------- | ----------------------------------- |
+| `piano_think`       | Route to OpenCode for deep analysis |
+| `nezha_get_tasks`   | View pending tasks                  |
+| `nezha_create_task` | Create new task                     |
 
 ## Working Flow
 
@@ -68,8 +68,8 @@ nezha meeting discuss "Topic" "Description"
 # Deep discussion
 nezha meeting discuss "Architecture decision" "We need to decide..."
 
-# Simple notification
-nezha broadcast "Deployment completed"
+# Save learning (all-in-one)
+nezha areflect "[LEARN] insight: ..."
 ```
 
 ## Collaboration
@@ -80,7 +80,7 @@ nezha broadcast "Deployment completed"
 
 ## Key Rules
 
-- ✅ Use CLI: `nezha task-add`, `nezha issue-add`, etc.
+- ✅ Use CLI: `nezha task-add`, `nezha issue-add`, `nezha areflect`, etc.
 - ✅ Use `piano_think` for complex reasoning
 - ❌ No HTTP fetch to 5999
 - ❌ No direct imports (uses CLI instead)
