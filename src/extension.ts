@@ -59,38 +59,6 @@ async function initACP() {
   }
 }
 
-async function checkStartupTasks(): Promise<string> {
-  const result = await execNezha(["tasks", "--status", "PENDING"]);
-  if (!result) return "Could not check tasks";
-
-  // Handle text output (default format)
-  if (result.includes("No tasks") || result.trim() === "") {
-    return "📋 No pending tasks";
-  }
-
-  // Parse task list from text output
-  const lines = result.split("\n").filter((l) => l.match(/^\[\d+\]/));
-  if (lines.length === 0) return "📋 No pending tasks";
-
-  // Extract priority and title
-  const tasks: { priority: number; title: string }[] = [];
-  for (const line of lines) {
-    const match = line.match(/\[(\d+)\]\s+(.+?)(?:\s+\(\w+\))?$/);
-    if (match && match[1]) {
-      tasks.push({ priority: parseInt(match[1]), title: match[2] || "" });
-    }
-  }
-
-  const highPriority = tasks.filter((t: any) => t.priority >= 8);
-  if (highPriority.length > 0) {
-    return `🎯 ${highPriority.length} high-priority tasks:\n${highPriority
-      .slice(0, 3)
-      .map((t: any) => `- ${t.title?.slice(0, 50)}`)
-      .join("\n")}`;
-  }
-  return `📋 ${tasks.length} tasks pending`;
-}
-
 const pianoThinkTool = {
   name: "piano_think",
   label: "Piano Think",
@@ -180,28 +148,9 @@ const nezhaCreateTaskTool = {
   },
 };
 
-const startupCheckTool = {
-  name: "piano_startup_check",
-  label: "Piano Startup Check",
-  description: "Check pending tasks on startup",
-  parameters: Type.Object({}),
-  async execute() {
-    const status = await checkStartupTasks();
-    return {
-      content: [{ type: "text", text: status }],
-      details: {},
-    };
-  },
-};
-
-export default async function pianoExtension(pi: any) {
+export default function pianoExtension(pi: any) {
   nupiExtension(pi);
   pi.registerTool(nezhaGetTasksTool);
   pi.registerTool(nezhaCreateTaskTool);
   pi.registerTool(pianoThinkTool);
-  pi.registerTool(startupCheckTool);
-
-  // Run startup check immediately
-  const status = await checkStartupTasks();
-  console.log(`[Piano Startup] ${status}`);
 }
