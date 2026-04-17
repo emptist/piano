@@ -64,12 +64,30 @@ async function checkStartupTasks(): Promise<string> {
   if (!result) return "Could not check tasks";
 
   try {
-    const tasks = JSON.parse(result);
-    if (tasks.length === 0) return "No pending tasks";
+    // Handle both JSON and text output
+    let tasks;
+    try {
+      tasks = JSON.parse(result);
+    } catch {
+      // If not JSON, check for "No tasks" or other text
+      if (
+        result.includes("No tasks") ||
+        result.includes("=== PENDING TASKS ===")
+      ) {
+        return "📋 No pending tasks";
+      }
+      return "📋 " + result.split("\n")[0];
+    }
+
+    if (!Array.isArray(tasks) || tasks.length === 0)
+      return "📋 No pending tasks";
 
     const highPriority = tasks.filter((t: any) => t.priority >= 8);
     if (highPriority.length > 0) {
-      return `🎯 ${highPriority.length} high-priority tasks waiting:\n${highPriority.map((t: any) => `- ${t.title}`).join("\n")}`;
+      return `🎯 ${highPriority.length} high-priority tasks:\n${highPriority
+        .slice(0, 3)
+        .map((t: any) => `- ${t.title?.slice(0, 50)}`)
+        .join("\n")}`;
     }
     return `📋 ${tasks.length} tasks pending`;
   } catch {
