@@ -59,6 +59,24 @@ async function initACP() {
   }
 }
 
+async function checkStartupTasks(): Promise<string> {
+  const result = await execNezha(["tasks", "--status", "PENDING", "--json"]);
+  if (!result) return "Could not check tasks";
+
+  try {
+    const tasks = JSON.parse(result);
+    if (tasks.length === 0) return "No pending tasks";
+
+    const highPriority = tasks.filter((t: any) => t.priority >= 8);
+    if (highPriority.length > 0) {
+      return `🎯 ${highPriority.length} high-priority tasks waiting:\n${highPriority.map((t: any) => `- ${t.title}`).join("\n")}`;
+    }
+    return `📋 ${tasks.length} tasks pending`;
+  } catch {
+    return "Failed to parse tasks";
+  }
+}
+
 const pianoThinkTool = {
   name: "piano_think",
   label: "Piano Think",
@@ -148,9 +166,28 @@ const nezhaCreateTaskTool = {
   },
 };
 
-export default function pianoExtension(pi: any) {
+const startupCheckTool = {
+  name: "piano_startup_check",
+  label: "Piano Startup Check",
+  description: "Check pending tasks on startup",
+  parameters: Type.Object({}),
+  async execute() {
+    const status = await checkStartupTasks();
+    return {
+      content: [{ type: "text", text: status }],
+      details: {},
+    };
+  },
+};
+
+export default async function pianoExtension(pi: any) {
   nupiExtension(pi);
   pi.registerTool(nezhaGetTasksTool);
   pi.registerTool(nezhaCreateTaskTool);
   pi.registerTool(pianoThinkTool);
+  pi.registerTool(startupCheckTool);
+
+  // Run startup check immediately
+  const status = await checkStartupTasks();
+  console.log(`[Piano Startup] ${status}`);
 }
