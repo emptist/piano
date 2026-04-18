@@ -1,4 +1,8 @@
-#!/bin/bash
-# Piano = Pi + Nezha + OpenCode routing
+#!/usr/bin/env node
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
 
-NUPI_BYSELF=false exec pi -e "$(npm root -g)/@nezha/piano/dist/src/extension.js" "$@"
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const entry = join(__dirname, "..", "dist", "index.js");
+
+import(entry);
