@@ -12,9 +12,26 @@ function execNezha(args: string[]): Promise<string | null> {
       });
       resolve(result);
     } catch {
-      resolve(null);
+      return null;
     }
   });
+}
+
+// Fetch startup prompt from database via nezha CLI
+function getStartupPromptFromDB(): string | null {
+  // TODO: Add nezha command for fetching approved prompts
+  // For now, query via CLI tools if available, fallback to default
+  try {
+    const { execSync } = require("child_process");
+    const result = execSync(`psql -h 127.0.0.1 -U postgres -d nezha -t -c "SELECT suggested_prompt FROM prompt_suggestions WHERE status = 'approved' ORDER BY updated_at DESC LIMIT 1;"`, {
+      encoding: "utf-8",
+      timeout: 5000,
+    });
+    const prompt = result.trim();
+    return prompt || null;
+  } catch {
+    return null;
+  }
 }
 
 let acpClient: OpenCodeACPClient | null = null;
@@ -144,18 +161,30 @@ export default function pianoExtension(pi: any) {
   // This is proper autonomous behavior - understand first, then act
   console.log('[Piano] Triggering startup AI review...');
   setTimeout(async () => {
-    const startupPrompt = `You are Piano AI. On startup, review this project to understand context:
-1. Read AGENTS.md if exists
-2. Read README.md if exists  
-3. Run: nezha tasks --status PENDING
-4. Run: nezha issue-list
-5. Analyze the project state
+    // Try to get startup prompt from database first
+    const dbPrompt = getStartupPromptFromDB();
+    const defaultPrompt = `You are Piano AI - an autonomous AI developer working on this project.
 
-Then save a learning: nezha areflect "[LEARN] insight: Project X has N tasks, M issues, key focus is Y"
+On startup, your job is to:
+1. Understand: Read AGENTS.md and README.md to know project goals
+2. Check: Run "nezha tasks --status PENDING" and "nezha issue-list" 
+3. Analyze: What needs to be done? What's broken? What's in progress?
+4. Research: Search web for relevant skills/techniques that could help (use search or skill search)
+5. Report: Create issues for problems found using "nezha issue-add"
+6. Work: Pick the highest priority task and start working on it
+7. Learn: Save insights with "nezha areflect"
 
-This is AI-first startup - understand before acting.`;
+This is AI-first startup - understand project, check tasks/issues, find skills, create issues, start working.`;
     
+    const startupPrompt = dbPrompt || defaultPrompt;
+    if (dbPrompt) {
+      console.log('[Piano] Using startup prompt from database');
+    } else {
+      console.log('[Piano] Using default startup prompt');
+    }
+    
+    console.log('[Piano] Sending startup review prompt to OpenCode...');
     const result = await opencodeThink(startupPrompt);
-    console.log('[Piano] Startup review complete:', result.slice(0, 200) + '...');
+    console.log('[Piano] Startup review response:', result.slice(0, 300) + '...');
   }, 5000); // Wait 5 seconds for Pi to fully initialize
 }
