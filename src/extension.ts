@@ -2,6 +2,17 @@ import { Type } from "@sinclair/typebox";
 import { nupiExtension, setExternalThinker } from "@nezha/nupi";
 import { OpenCodeACPClient } from "./opencode-acp";
 
+let piInstance: any = null;
+let pendingMessages: string[] = [];
+
+function notifyPi(message: string, type: "info" | "warning" | "error" = "info") {
+  if (piInstance?.ui?.notify) {
+    piInstance.ui.notify(message, type);
+  }
+  // Always also log to console for debugging
+  console.log(message);
+}
+
 function execNezha(args: string[]): Promise<string | null> {
   return new Promise((resolve) => {
     const { execSync } = require("child_process");
@@ -19,8 +30,6 @@ function execNezha(args: string[]): Promise<string | null> {
 
 // Fetch startup prompt from database via nezha CLI
 function getStartupPromptFromDB(): string | null {
-  // TODO: Add nezha command for fetching approved prompts
-  // For now, query via CLI tools if available, fallback to default
   try {
     const { execSync } = require("child_process");
     const result = execSync(`psql -h 127.0.0.1 -U postgres -d nezha -t -c "SELECT suggested_prompt FROM prompt_suggestions WHERE status = 'approved' ORDER BY updated_at DESC LIMIT 1;"`, {
@@ -38,46 +47,45 @@ let acpClient: OpenCodeACPClient | null = null;
 let acpInitPromise: Promise<void> | null = null;
 
 async function opencodeThink(question: string): Promise<string> {
-  console.log('[Piano] Processing thinking request...');
+  notifyPi('[Piano] Processing thinking request...');
   
-  // Lazy init ACP on first use
   if (!acpInitPromise) {
-    console.log('[Piano] Initializing ACP for first use...');
+    notifyPi('[Piano] Initializing ACP for first use...');
     acpInitPromise = initACP();
   }
 
   try {
     await acpInitPromise;
-    console.log('[Piano] ACP init complete');
+    notifyPi('[Piano] ACP init complete');
   } catch (e) {
-    console.log('[Piano] ACP init failed:', e);
+    notifyPi('[Piano] ACP init failed: ' + e, "error");
   }
 
   if (!acpClient) {
-    console.log('[Piano] No ACP client - using fallback mode');
+    notifyPi('[Piano] No ACP client - using fallback mode', "warning");
     return `External thinker (OpenCode ACP) not available. Question: ${question.substring(0, 100)}`;
   }
 
   try {
-    console.log(`[Piano→OpenCode] Sending: "${question.slice(0, 100)}${question.length > 100 ? '...' : ''}"`);
+    notifyPi(`[Piano→OpenCode] Sending: "${question.slice(0, 100)}${question.length > 100 ? '...' : ''}"`);
     const result = await acpClient.think(question);
-    console.log(`[Piano←OpenCode] Got response (${result.length} chars)`);
+    notifyPi(`[Piano←OpenCode] Got response (${result.length} chars)`);
     return result;
   } catch (e) {
-    console.error('[Piano→OpenCode] Failed:', e);
+    notifyPi('[Piano→OpenCode] Failed: ' + e, "error");
     return `OpenCode error: ${e}`;
   }
 }
 
 async function initACP() {
-  console.log('[Piano] Starting ACP client...');
+  notifyPi('[Piano] Starting ACP client...');
   acpClient = new OpenCodeACPClient(process.cwd());
   await acpClient.start();
-  console.log('[Piano] ACP client ready');
+  notifyPi('[Piano] ACP client ready');
 }
 
 setExternalThinker(opencodeThink);
-console.log('[Piano] External thinker registered (NUPI_BYSELF=false)');
+notifyPi('[Piano] External thinker registered (NUPI_BYSELF=false)');
 
 const pianoThinkTool = {
   name: "piano_think",
@@ -88,7 +96,7 @@ const pianoThinkTool = {
     question: Type.String({ description: "What needs deep thought" }),
   }),
   async execute(_id: any, params: any) {
-    console.log('[Piano] Tool: piano_think called');
+    notifyPi('[Piano] Tool: piano_think called');
     const result = await opencodeThink(params.question);
     return {
       content: [{ type: "text", text: result }],
@@ -106,7 +114,7 @@ const nezhaGetTasksTool = {
     limit: Type.Optional(Type.Number()),
   }),
   async execute(_id: any, params: any) {
-    console.log('[Piano] Tool: nezha_get_tasks called');
+    notifyPi('[Piano] Tool: nezha_get_tasks called');
     const args = ["tasks", "--status", params.status || "PENDING", "--json"];
     const result = await execNezha(args);
     if (!result) {
@@ -137,7 +145,7 @@ const nezhaCreateTaskTool = {
     priority: Type.Optional(Type.Number()),
   }),
   async execute(_id: any, params: any) {
-    console.log('[Piano] Tool: nezha_create_task called');
+    notifyPi('[Piano] Tool: nezha_create_task called');
     const args = ["task-add", params.title];
     if (params.description) args.push(params.description);
     if (params.priority) args.push("--priority", String(params.priority));
@@ -150,18 +158,17 @@ const nezhaCreateTaskTool = {
 };
 
 export default function pianoExtension(pi: any) {
-  console.log('[Piano] Registering extension...');
+  piInstance = pi;
+  notifyPi('[Piano] Thinking router ready (NUPI_BYSELF=false)');
   nupiExtension(pi);
   pi.registerTool(nezhaGetTasksTool);
   pi.registerTool(nezhaCreateTaskTool);
   pi.registerTool(pianoThinkTool);
-  console.log('[Piano] Tools registered: nezha_get_tasks, nezha_create_task, piano_think');
+  notifyPi('[Piano] Tools registered: nezha_get_tasks, nezha_create_task, piano_think');
   
   // AI-first startup: trigger OpenCode to review project
-  // This is proper autonomous behavior - understand first, then act
-  console.log('[Piano] Triggering startup AI review...');
+  notifyPi('[Piano] Triggering startup AI review...');
   setTimeout(async () => {
-    // Try to get startup prompt from database first
     const dbPrompt = getStartupPromptFromDB();
     const defaultPrompt = `You are Piano AI - an autonomous AI developer working on this project.
 
@@ -169,22 +176,22 @@ On startup, your job is to:
 1. Understand: Read AGENTS.md and README.md to know project goals
 2. Check: Run "nezha tasks --status PENDING" and "nezha issue-list" 
 3. Analyze: What needs to be done? What's broken? What's in progress?
-4. Research: Search web for relevant skills/techniques that could help (use search or skill search)
-5. Report: Create issues for problems found using "nezha issue-add"
-6. Work: Pick the highest priority task and start working on it
+4. Research: Search web for relevant skills/techniques
+5. Report: Create issues for problems found
+6. Work: Pick highest priority task and start working
 7. Learn: Save insights with "nezha areflect"
 
-This is AI-first startup - understand project, check tasks/issues, find skills, create issues, start working.`;
+This is AI-first startup - understand, find issues, create tasks, start working.`;
     
     const startupPrompt = dbPrompt || defaultPrompt;
     if (dbPrompt) {
-      console.log('[Piano] Using startup prompt from database');
+      notifyPi('[Piano] Using startup prompt from database');
     } else {
-      console.log('[Piano] Using default startup prompt');
+      notifyPi('[Piano] Using default startup prompt');
     }
     
-    console.log('[Piano] Sending startup review prompt to OpenCode...');
+    notifyPi('[Piano] Sending startup review prompt to OpenCode...');
     const result = await opencodeThink(startupPrompt);
-    console.log('[Piano] Startup review response:', result.slice(0, 300) + '...');
-  }, 5000); // Wait 5 seconds for Pi to fully initialize
+    notifyPi('[Piano] Startup review response: ' + result.slice(0, 300) + '...');
+  }, 5000);
 }
