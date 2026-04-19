@@ -29,6 +29,7 @@ export class OpenCodeACPClient {
   private process: ChildProcess | null = null;
   private messageId = 0;
   private pendingRequests = new Map<number, PendingRequest>();
+  private buffer = "";  // Accumulate partial JSON
   private sessionId: string | null = null;
   private initialized = false;
 
@@ -84,26 +85,55 @@ export class OpenCodeACPClient {
   }
 
   private handleMessage(data: string): void {
-    const lines = data.split("\n").filter((line) => line.trim());
-    for (const line of lines) {
-      try {
-        const msg = JSON.parse(line);
-        if (msg.id !== undefined && this.pendingRequests.has(msg.id)) {
-          const { resolve, reject } = this.pendingRequests.get(msg.id)!;
-          if (msg.error) {
-            reject(new Error(msg.error.message));
-          } else {
-            resolve(msg.result);
-          }
-          this.pendingRequests.delete(msg.id);
+    // Accumulate partial JSON across multiple chunks
+    this.buffer += data;
+    
+    // Try to extract and parse complete JSON objects
+    while (this.buffer.length > 0) {
+      const trimmed = this.buffer.trim();
+      
+      // Skip non-JSON lines (logs, etc.)
+      if (trimmed && !trimmed.startsWith("{") && !trimmed.startsWith("[")) {
+        // Find the next { or [ to start from
+        const jsonStart = trimmed.search(/[\[{]/);
+        if (jsonStart === -1) {
+          // No JSON found, clear buffer
+          this.buffer = "";
+          break;
         }
-        // Handle notifications (no id)
-        else if (msg.method && !msg.id) {
-          this.handleNotification(msg);
-        }
-      } catch (e) {
-        console.error("[OpenCode ACP] Failed to parse message:", line);
+        this.buffer = trimmed.slice(jsonStart);
+        continue;
       }
+      
+      // Try to parse
+      try {
+        // Find matching closing bracket
+        const msg = JSON.parse(this.buffer);
+        this.processMessage(msg);
+        // Clear buffer after successful parse
+        this.buffer = "";
+      } catch (e) {
+        // Incomplete JSON - wait for more data
+        // Keep buffer as-is and wait for next chunk
+        break;
+      }
+    }
+  }
+
+  private processMessage(msg: any): void {
+    // Existing message handling logic
+    if (msg.id !== undefined && this.pendingRequests.has(msg.id)) {
+      const { resolve, reject } = this.pendingRequests.get(msg.id)!;
+      if (msg.error) {
+        reject(new Error(msg.error.message));
+      } else {
+        resolve(msg.result);
+      }
+      this.pendingRequests.delete(msg.id);
+    }
+    // Handle notifications (no id)
+    else if (msg.method && !msg.id) {
+      this.handleNotification(msg);
     }
   }
 

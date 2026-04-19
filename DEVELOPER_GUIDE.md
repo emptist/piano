@@ -82,12 +82,25 @@ npm run test
 npm run build
 ```
 
-### Running Continuous Work
+### Build Output
+
+TypeScript compiles to `dist/src/` (see `tsconfig.json` `rootDir`):
+```
+dist/src/
+├── extension.js      # Main extension (loaded by Pi)
+├── opencode-acp.js   # ACP client
+└── index.js          # Package entry
+```
+
+### After Code Changes
 
 ```bash
-# Run as standalone process
-node piano-continuous.mjs
+rm -rf dist/      # Clean old build
+npm run build     # Rebuild
+piano           # Test (reads symlinked files)
 ```
+
+**Important:** There is NO programmatic autonomous loop. Piano is a router, not a timer.
 
 ### Launcher Commands (全局命令)
 

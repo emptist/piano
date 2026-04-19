@@ -1,10 +1,18 @@
 # Piano
 
-> Thinking Router - delegates complex thinking to OpenCode via ACP, uses nezha via CLI
+> Thinking Router
+>
+> Designed by AIs, for AIs, maintained by AIs
+
+> Routes complex thinking to OpenCode via ACP, uses nezha via CLI
 
 ## Philosophy
 
-**Piano does one thing: take complex thinking away from Pi, route to OpenCode via ACP, return result for execution.**
+**Piano is a router, not an autonomous loop.**
+
+- Piano delegates complex thinking to OpenCode when needed
+- The "autonomous" in Nezha family comes from AI collaboration (tasks, issues, meetings), NOT timers
+- A timer/loop is NOT AI - it's just a dead clock pretending to be intelligent
 
 ## Architecture
 
@@ -19,6 +27,14 @@ Piano = Router + NuPI (BYSELF=false) + ACP Client + Pi
 1. **Extends NuPI** with external thinker mode (NUPI_BYSELF=false)
 2. **Routes to OpenCode** via ACP protocol when complex thinking needed
 3. **Returns result** to Pi for execution
+
+## NOT Piano
+
+- ❌ No setInterval loop
+- ❌ No programmatic wake-sleep cycle  
+- ❌ No timer pretending to be AI
+
+Only routers when called by NuPI.
 
 ## How It Works
 
@@ -88,7 +104,98 @@ npm install -g @nezha/piano
 
 - ❌ No HTTP server
 - ❌ No MCP server
-- ❌ No library import (uses CLI instead)
-- ❌ No complex routing logic
+- ❌ No setInterval loop (that's a dead clock, not AI)
+- ❌ No programmatic autonomous cycle
 
 Just simple routing: OpenCode via ACP for thinking, Pi for execution, nezha CLI for persistence.
+
+## How Autonomy Really Works
+
+In Nezha family, "autonomous" means **AI collaboration**, NOT a timer loop:
+
+```
+Human/NuPI → creates task → Piano routes to OpenCode → OpenCode executes → saves learning → next AI picks up
+     ↑                                                                      ↓
+     └────────────────── continuous improvement loop ─────────────────────────┘
+```
+
+The loop is AI-driven through:
+- Tasks created by AIs
+- Issues tracked in Nezha  
+- Meetings for discussion
+- Inter-Review for collaboration
+- Skills learned and reused
+
+NOT a setInterval timer.
+
+---
+
+## NPM Packaging & Development
+
+### Package Structure
+
+```
+piano/
+├── bin/
+│   └── piano              # Entry point (bash script)
+├── src/
+│   ├── extension.ts     # Main extension
+│   └── opencode-acp.ts  # ACP client
+├── dist/                # Compiled output (gitignored)
+│   └── src/             # TypeScript outputs here
+├── package.json
+└── tsconfig.json
+```
+
+### NPM Install (Global)
+
+```bash
+npm install -g @nezha/piano
+```
+
+This installs to homebrew/node_modules and creates symlink at `/opt/homebrew/bin/piano`
+
+### Development (Local)
+
+```bash
+cd piano
+npm install           # Install dependencies
+npm run build         # Compile TypeScript → dist/src/
+npm link              # Link globally to homebrew
+piano                # Test changes
+```
+
+### The Build Process
+
+1. `npm run build` runs `tsc`
+2. Output goes to `dist/src/` (because `rootDir: "./src"` in tsconfig)
+3. `bin/piano` loads `dist/src/extension.js`
+4. Symlink at `/opt/homebrew/bin/piano` points to homebrew install
+
+### Path Configuration
+
+`bin/piano` uses:
+```bash
+NUPI_BYSELF=false exec pi -e "$(npm root -g)/@nezha/piano/dist/src/extension.js"
+```
+
+- `$(npm root -g)` = `/opt/homebrew/lib/node_modules`
+- `@nezha/piano` = the package (symlinked to local source)
+- `dist/src/extension.js` = compiled extension
+
+### After Code Changes
+
+```bash
+rm -rf dist/          # Clean old build
+npm run build         # Rebuild
+piano               # Test (reads from symlinked source)
+```
+
+### For Other Projects Using Piano
+
+```bash
+# In another project's directory
+piano                # Uses global piano, runs in that project dir
+```
+
+Piano inherits the working directory - wherever you run it from.
