@@ -12,9 +12,10 @@
     }
   },
   "scripts": {
-    "build": "git rev-parse --short HEAD > .git-hash && tsc",
+    "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "hash": "bash scripts/write-hash.sh"
   },
   "bin": {
     "piano": "./bin/piano",
