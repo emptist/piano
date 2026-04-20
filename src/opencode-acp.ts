@@ -7,8 +7,6 @@
 
 import { spawn, type ChildProcess } from "child_process";
 import {
-  AGENT_METHODS,
-  CLIENT_METHODS,
   type InitializeResponse,
 } from "@agentclientprotocol/sdk";
 
@@ -189,7 +187,7 @@ export class OpenCodeACPClient {
 
   async readTextFile(params: { path: string }): Promise<{ content: string }> {
     return (await this.sendRequest(
-      CLIENT_METHODS.fs_read_text_file,
+      "fs/read_text_file",
       params,
     )) as { content: string };
   }
@@ -199,7 +197,7 @@ export class OpenCodeACPClient {
     content: string;
   }): Promise<{ ok: boolean }> {
     return (await this.sendRequest(
-      CLIENT_METHODS.fs_write_text_file,
+      "fs/write_text_file",
       params,
     )) as { ok: boolean };
   }
@@ -212,7 +210,7 @@ export class OpenCodeACPClient {
       throw new Error("No session available");
     }
 
-    const result = await this.sendRequest(AGENT_METHODS.session_prompt, {
+    const result = await this.sendRequest("session/prompt", {
       sessionId,
       prompt,
     });

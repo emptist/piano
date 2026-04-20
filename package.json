@@ -12,10 +12,9 @@
     }
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node scripts/replace-hash.js",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "hash": "bash scripts/write-hash.sh"
+    "test": "vitest run"
   },
   "bin": {
     "piano": "./bin/piano",
