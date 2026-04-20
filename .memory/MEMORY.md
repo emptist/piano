@@ -219,3 +219,36 @@ piano  # 自动处理 coffeeclaw 项目
 - ✅ hook 自动添加 `[Agent: <id>]`
 
 详见: https://github.com/emptist/nezha/pull/X
+
+## NPM Link Best Practices (CRITICAL!)
+
+**ALWAYS use official `npm link` - NEVER create symlinks manually!**
+
+```bash
+# Official method (two-step)
+cd /path/to/nezha
+npm link              # Creates global symlink
+
+cd /path/to/nupi
+npm link nezha        # Links to global package
+
+# Shortcut (one command)
+npm link /path/to/nezha
+```
+
+**Why npm link?**
+- Creates proper symlinks in `{prefix}/lib/node_modules/`
+- Automatically links binaries to `{prefix}/bin/`
+- Works with homebrew npm prefix (`/opt/homebrew`)
+- Safe to re-run after builds
+
+**Verify links:**
+```bash
+npm list -g --depth=0 | grep nezha
+ls -la /opt/homebrew/bin/nezha
+```
+
+**Unlink:**
+```bash
+npm unlink nezha
+```

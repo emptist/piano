@@ -1,4 +1,13 @@
 #!/bin/bash
 # Piano = Pi + Nezha + OpenCode routing
 
-NUPI_BYSELF=false exec pi -e "$(npm root -g)/@nezha/piano/dist/src/extension.js" "$@"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+
+# Development mode: load from local dist if it exists
+if [ -f "$PROJECT_DIR/dist/src/extension.js" ]; then
+  exec pi -e "$PROJECT_DIR/dist/src/extension.js" "$@"
+else
+  # Production: use global install
+  exec pi -e "$(npm root -g)/@nezha/piano/dist/src/extension.js" "$@"
+fi

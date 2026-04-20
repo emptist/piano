@@ -1,16 +1,31 @@
 import { Type } from "@sinclair/typebox";
-import { nupiExtension, setExternalThinker } from "@nezha/nupi";
+import type {
+  ExtensionAPI,
+} from "@mariozechner/pi-coding-agent";
+import { nupiExtension, setExternalThinker, setDelegateMode } from "@nezha/nupi";
 import { OpenCodeACPClient } from "./opencode-acp";
+import { readFileSync, existsSync } from "fs";
+import { resolve, dirname } from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const GIT_HASH = (() => {
+  const hashFile = resolve(__dirname, "../../.git-hash");
+  if (existsSync(hashFile)) {
+    try { return readFileSync(hashFile, "utf-8").trim(); } catch {}
+  }
+  return "unknown";
+})();
 
 let piInstance: any = null;
 let pendingMessages: string[] = [];
 
 function notifyPi(message: string, type: "info" | "warning" | "error" = "info") {
   if (piInstance?.ui?.notify) {
-    piInstance.ui.notify(message, type);
+    piInstance.ui.notify(`[Piano@${GIT_HASH}] ${message}`, type);
   }
-  // Always also log to console for debugging
-  console.log(message);
+  console.log(`[Piano@${GIT_HASH}] ${message}`);
 }
 
 function execNezha(args: string[]): Promise<string | null> {
@@ -85,7 +100,6 @@ async function initACP() {
 }
 
 setExternalThinker(opencodeThink);
-notifyPi('[Piano] External thinker registered (NUPI_BYSELF=false)');
 
 const pianoThinkTool = {
   name: "piano_think",
@@ -97,9 +111,11 @@ const pianoThinkTool = {
   }),
   async execute(_id: any, params: any) {
     notifyPi('[Piano] Tool: piano_think called');
+    notifyPi('[Piano] Question: ' + params.question?.slice(0, 100) + '...');
     const result = await opencodeThink(params.question);
+    notifyPi('[Piano] Response: ' + result?.slice(0, 100) + '...');
     return {
-      content: [{ type: "text", text: result }],
+      content: [{ type: "text" as const, text: result }],
       details: { action: "route_to_opencode" },
     };
   },
@@ -118,19 +134,19 @@ const nezhaGetTasksTool = {
     const args = ["tasks", "--status", params.status || "PENDING", "--json"];
     const result = await execNezha(args);
     if (!result) {
-      return { content: [{ type: "text", text: "Failed to get tasks" }], details: {} };
+      return { content: [{ type: "text" as const, text: "Failed to get tasks" }], details: {} };
     }
     try {
       const tasks = JSON.parse(result);
       if (!tasks.length) {
-        return { content: [{ type: "text", text: "No tasks" }], details: {} };
+        return { content: [{ type: "text" as const, text: "No tasks" }], details: {} };
       }
       const lines = tasks.slice(0, params.limit || 10).map((t: any, i: number) => 
         `${i + 1}. [P${t.priority}] ${t.title} (${t.status})`
       );
-      return { content: [{ type: "text", text: lines.join("\n") }], details: {} };
+      return { content: [{ type: "text" as const, text: lines.join("\n") }], details: {} };
     } catch {
-      return { content: [{ type: "text", text: "Failed to parse tasks" }], details: {} };
+      return { content: [{ type: "text" as const, text: "Failed to parse tasks" }], details: {} };
     }
   },
 };
@@ -151,19 +167,20 @@ const nezhaCreateTaskTool = {
     if (params.priority) args.push("--priority", String(params.priority));
     const result = await execNezha(args);
     if (!result) {
-      return { content: [{ type: "text", text: "Failed to create task" }], details: {} };
+      return { content: [{ type: "text" as const, text: "Failed to create task" }], details: {} };
     }
-    return { content: [{ type: "text", text: `Task created: ${params.title}` }], details: {} };
+    return { content: [{ type: "text" as const, text: `Task created: ${params.title}` }], details: {} };
   },
 };
 
-export default function pianoExtension(pi: any) {
+export default function pianoExtension(pi: ExtensionAPI) {
   piInstance = pi;
-  notifyPi('[Piano] Thinking router ready (NUPI_BYSELF=false)');
-  nupiExtension(pi);
-  pi.registerTool(nezhaGetTasksTool);
-  pi.registerTool(nezhaCreateTaskTool);
-  pi.registerTool(pianoThinkTool);
+  setDelegateMode(true);
+  notifyPi('[Piano] Thinking router ready (external mode)');
+  nupiExtension(pi as any);
+  pi.registerTool(pianoThinkTool as any);
+  pi.registerTool(nezhaGetTasksTool as any);
+  pi.registerTool(nezhaCreateTaskTool as any);
   notifyPi('[Piano] Tools registered: nezha_get_tasks, nezha_create_task, piano_think');
   
   // AI-first startup: trigger OpenCode to review project

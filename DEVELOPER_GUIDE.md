@@ -82,6 +82,43 @@ npm run test
 npm run build
 ```
 
+### Official NPM Link Workflow (CRITICAL!)
+
+**ALWAYS use official `npm link` - NEVER create symlinks manually!**
+
+```bash
+# Step 1: In the package directory
+cd /path/to/nezha
+npm link              # Creates global symlink
+
+# Step 2: In other projects
+cd /path/to/nupi
+npm link nezha        # Links to global package
+```
+
+**Shortcut (one command):**
+```bash
+npm link /path/to/nezha
+```
+
+### Verify Links
+
+```bash
+npm list -g --depth=0 | grep nezha
+ls -la /opt/homebrew/bin/nezha
+```
+
+### Unlink
+
+```bash
+# In the project that linked
+npm unlink nezha
+
+# Or in the package directory
+cd /path/to/nezha
+npm unlink
+```
+
 ### Build Output
 
 TypeScript compiles to `dist/src/` (see `tsconfig.json` `rootDir`):
@@ -102,23 +139,21 @@ piano           # Test (reads symlinked files)
 
 **Important:** There is NO programmatic autonomous loop. Piano is a router, not a timer.
 
-### Launcher Commands (全局命令)
+### Launcher Commands
 
-Piano 提供全局启动命令，安装后可在任意目录使用：
+Use `npm link` to install globally, then use anywhere:
 
 ```bash
-# 安装 (首次)
-ln -sf /path/to/piano/bin/piano /usr/local/bin/piano
-ln -sf /path/to/piano/bin/nupi /usr/local/bin/nupi
+# Install globally (creates symlink at /opt/homebrew/bin/piano)
+cd /path/to/piano
+npm link
 
-# 使用
-piano              # 启动 Piano (任务路由 AI)
-nupi               # 启动 NuPI (本地 LLM)
-piano nupi         # 切换到 NuPI
-nupi piano         # 切换到 Piano
+# Now use in any directory
+piano              # Start Piano (thinking router)
+nupi               # Start NuPI (local LLM)
 ```
 
-**自动识别项目** - 在哪个目录运行，就处理那个项目！
+**Automatic project detection** - run in any directory to process that project!
 
 ### Connecting to Other AIs
 

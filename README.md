@@ -147,22 +147,34 @@ piano/
 └── tsconfig.json
 ```
 
-### NPM Install (Global)
+### Official NPM Link Workflow (CRITICAL!)
+
+**ALWAYS use `npm link` - NEVER create symlinks manually!**
 
 ```bash
-npm install -g @nezha/piano
+# Install globally (official method)
+cd /path/to/piano
+npm link              # Creates global symlink + bin link
+
+# Now available anywhere
+piano                 # Run from any directory
 ```
 
-This installs to homebrew/node_modules and creates symlink at `/opt/homebrew/bin/piano`
+### Why npm link?
 
-### Development (Local)
+- Creates proper symlinks in `{prefix}/lib/node_modules/`
+- Automatically links binaries to `{prefix}/bin/`
+- Works with homebrew npm prefix (`/opt/homebrew`)
+- Safe to re-run after builds
+
+### Development Workflow
 
 ```bash
 cd piano
 npm install           # Install dependencies
 npm run build         # Compile TypeScript → dist/src/
-npm link              # Link globally to homebrew
-piano                # Test changes
+npm link              # Link globally (official method)
+piano                 # Test changes
 ```
 
 ### The Build Process
@@ -171,6 +183,13 @@ piano                # Test changes
 2. Output goes to `dist/src/` (because `rootDir: "./src"` in tsconfig)
 3. `bin/piano` loads `dist/src/extension.js`
 4. Symlink at `/opt/homebrew/bin/piano` points to homebrew install
+
+### Verify Links
+
+```bash
+npm list -g --depth=0 | grep piano
+ls -la /opt/homebrew/bin/piano
+```
 
 ### Path Configuration
 
