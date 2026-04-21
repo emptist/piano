@@ -3,7 +3,7 @@ import type {
   ExtensionAPI,
 } from "@mariozechner/pi-coding-agent";
 import { nupiExtension, setExternalThinker, setDelegateMode } from "@nezha/nupi";
-import { OpenCodeACPClient } from "./opencode-acp";
+import { opencodeThink, stopOpenCodeServer } from "./opencode-serve";
 
 const GIT_HASH = "@@GIT_HASH@@";
 
@@ -45,47 +45,6 @@ function getStartupPromptFromDB(): string | null {
   } catch {
     return null;
   }
-}
-
-let acpClient: OpenCodeACPClient | null = null;
-let acpInitPromise: Promise<void> | null = null;
-
-async function opencodeThink(question: string): Promise<string> {
-  notifyPi('[Piano] Processing thinking request...');
-  
-  if (!acpInitPromise) {
-    notifyPi('[Piano] Initializing ACP for first use...');
-    acpInitPromise = initACP();
-  }
-
-  try {
-    await acpInitPromise;
-    notifyPi('[Piano] ACP init complete');
-  } catch (e) {
-    notifyPi('[Piano] ACP init failed: ' + e, "error");
-  }
-
-  if (!acpClient) {
-    notifyPi('[Piano] No ACP client - using fallback mode', "warning");
-    return `External thinker (OpenCode ACP) not available. Question: ${question.substring(0, 100)}`;
-  }
-
-  try {
-    notifyPi(`[Piano→OpenCode] Sending: "${question.slice(0, 100)}${question.length > 100 ? '...' : ''}"`);
-    const result = await acpClient.think(question);
-    notifyPi(`[Piano←OpenCode] Got response (${result.length} chars)`);
-    return result;
-  } catch (e) {
-    notifyPi('[Piano→OpenCode] Failed: ' + e, "error");
-    return `OpenCode error: ${e}`;
-  }
-}
-
-async function initACP() {
-  notifyPi('[Piano] Starting ACP client...');
-  acpClient = new OpenCodeACPClient(process.cwd());
-  await acpClient.start();
-  notifyPi('[Piano] ACP client ready');
 }
 
 setExternalThinker(opencodeThink);

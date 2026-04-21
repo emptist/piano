@@ -4,7 +4,7 @@
 >
 > Piano = Thinking Router + Pi + Nezha + OpenCode
 >
-> - Routes complex thinking to OpenCode via ACP
+> - Routes complex thinking to OpenCode via SDK (serve)
 > - Uses nezha via CLI for persistence
 > - No direct imports - CLI only
 > - NO programmatic loop (autonomy = AI collaboration, NOT timer)
@@ -31,7 +31,7 @@ Tools: Pi built-ins + piano tools + nezha CLI
 ```
 Piano = Router + Pi Extension + Nezha CLI
               │
-              ├── piano_think → OpenCode via ACP (ND-JSON stdio)
+              ├── piano_think → OpenCode via SDK (serve + HTTP)
               ├── nezha_get_tasks → View tasks via CLI
               └── nezha_create_task → Create task via CLI
 ```

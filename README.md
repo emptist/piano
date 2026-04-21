@@ -4,7 +4,7 @@
 >
 > Designed by AIs, for AIs, maintained by AIs
 
-> Routes complex thinking to OpenCode via ACP, uses nezha via CLI
+> Routes complex thinking to OpenCode via HTTP SDK, uses nezha via CLI
 
 ## Philosophy
 
@@ -17,15 +17,15 @@
 ## Architecture
 
 ```
-Piano = Router + NuPI (BYSELF=false) + ACP Client + Pi
-         │
-         └── When Pi needs deep thinking → OpenCode ACP → return result
+Piano = Router + NuPI (BYSELF=false) + OpenCode SDK Client + Pi
+          │
+          └── When Pi needs deep thinking → OpenCode serve → return result
 ```
 
 ## What Piano Does
 
 1. **Extends NuPI** with external thinker mode (NUPI_BYSELF=false)
-2. **Routes to OpenCode** via ACP protocol when complex thinking needed
+2. **Routes to OpenCode** via HTTP SDK when complex thinking needed
 3. **Returns result** to Pi for execution
 
 ## NOT Piano
@@ -43,9 +43,9 @@ Piano starts with NUPI_BYSELF=false
     ↓
 Pi calls nupi-think tool (delegation)
     ↓
-OpenCodeACPClient.think() → spawn("opencode acp") → JSON-RPC over stdio
+opencode-serve.ts → spawn("opencode serve") → HTTP server
     ↓
-OpenCode processes prompt → returns response
+SDK client → /session/prompt → OpenCode processes
     ↓
 Response returned to Pi for execution
 ```
@@ -57,18 +57,23 @@ Response returned to Pi for execution
 npm install -g @nezha/piano
 
 # Piano automatically sets NUPI_BYSELF=false
-# Uses ACP protocol to communicate with OpenCode
+# Uses OpenCode SDK to communicate with serve
 piano
 ```
 
-## ACP Integration
+## OpenCode Integration
 
-Piano uses official ACP (Agent Client Protocol) to communicate with OpenCode:
+Piano uses `@opencode-ai/sdk` to communicate with OpenCode serve:
 
-- **Spawn**: `opencode acp --cwd <dir>`
-- **Protocol**: JSON-RPC over stdio (ND-JSON format)
-- **Methods**: `initialize`, `session/new`, `session/prompt`
-- **Options supported**: `--log-level`, `--pure`, `--print-logs`
+- **Server**: `opencode serve --port 0` (starts on random port)
+- **SDK**: `@opencode-ai/sdk/v2/client`
+- **Flow**: list sessions → create/fetch → prompt → response
+- **Returns**: `{ info: { tokens, agent, mode, summary } }`
+
+**Why serve instead of ACP?**
+- ACP is for editors (Zed) connecting TO OpenCode - server side
+- Serve + SDK is for programmatic access - client side
+- Better resource management with persistent connection
 
 ## Piano Tools
 
@@ -92,7 +97,7 @@ This aligns with "CLI as the new trend for LLMs".
 
 - **NPM**: `@nezha/piano`
 - **CLI**: `piano` (launches pi with extension)
-- **Dependencies**: `@nezha/nupi`, `@mariozechner/pi-coding-agent`, `@agentclientprotocol/sdk`
+- **Dependencies**: `@nezha/nupi`, `@mariozechner/pi-coding-agent`, `@opencode-ai/sdk`
 
 ## Install
 
