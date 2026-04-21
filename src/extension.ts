@@ -11,10 +11,15 @@ let piInstance: any = null;
 let pendingMessages: string[] = [];
 
 function notifyPi(message: string, type: "info" | "warning" | "error" = "info") {
+  const log = `[Piano@${GIT_HASH}] ${message}`;
   if (piInstance?.ui?.notify) {
-    piInstance.ui.notify(`[Piano@${GIT_HASH}] ${message}`, type);
+    piInstance.ui.notify(log, type);
+    pendingMessages.forEach(l => piInstance.ui.notify(l, type));
+    pendingMessages = [];
+  } else {
+    pendingMessages.push(log);
+    if (pendingMessages.length > 100) pendingMessages.shift();
   }
-  console.log(`[Piano@${GIT_HASH}] ${message}`);
 }
 
 function execNezha(args: string[]): Promise<string | null> {
