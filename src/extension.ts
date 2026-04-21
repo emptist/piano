@@ -17,8 +17,8 @@ function notifyPi(message: string, type: "info" | "warning" | "error" = "info") 
     pendingMessages.forEach(l => piInstance.ui.notify(l, type));
     pendingMessages = [];
   } else {
-    pendingMessages.push(log);
-    if (pendingMessages.length > 100) pendingMessages.shift();
+    // console.log only during early startup, not during async operations
+    console.log(log);
   }
 }
 
