@@ -49,3 +49,4 @@ temp/
 bin/*
 old_tsconfig.json
 README.html
+.git-hash
