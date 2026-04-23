@@ -1,24 +1,12 @@
 {
   "name": "@nezha/piano",
   "version": "0.5.0",
-  "description": "Piano = NuPI (package) + OpenCode (external). 任务路由与协调层,使用OpenCode作为执行引擎",
+  "description": "Piano = Thinking Router + NuPI + OpenCode",
   "type": "module",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "exports": {
-    ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
-    }
-  },
-  "scripts": {
-    "build": "tsc && node scripts/replace-hash.js",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run"
-  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "bin": {
-    "piano": "./bin/piano",
-    "piano-autonomous": "./bin/piano-autonomous"
+    "piano": "./bin/piano"
   },
   "keywords": [
     "nezha",
@@ -46,6 +34,15 @@
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "scripts": {
+    "build": "tsc && node scripts/replace-hash.js",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "predev": "npm run build",
+    "dev": "rm -rf $(npm root -g)/@nezha/piano; npm link; echo === STATUS ===; echo Local:; grep GIT_HASH dist/src/extension.js; echo Global:; grep GIT_HASH $(npm root -g)/@nezha/piano/dist/src/extension.js",
+    "prestatus": "test -d dist || npm run build",
+    "status": "echo === STATUS ===; echo Local:; grep GIT_HASH dist/src/extension.js; echo Global:; grep GIT_HASH $(npm root -g)/@nezha/piano/dist/src/extension.js"
   },
   "repository": {
     "type": "git",
