@@ -142,6 +142,8 @@ export default function pianoExtension(pi: ExtensionAPI) {
   piInstance = pi;
   notifyPi('[Piano] Thinking router ready (external mode)');
   nupiExtension(pi as any);
+  registerThinker(pianoThinker);
+  notifyPi('[Piano] External thinker registered: OpenCode');
   pi.registerTool(pianoThinkTool as any);
   pi.registerTool(nezhaGetTasksTool as any);
   pi.registerTool(nezhaCreateTaskTool as any);
