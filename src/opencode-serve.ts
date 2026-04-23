@@ -69,15 +69,26 @@ export async function opencodeThink(question: string): Promise<string> {
   log("Got SDK, listing sessions...");
 
   try {
-    // Always create fresh session to avoid stale state
-    log("Creating new session...");
-    const createdResult = await sdk.session.create({});
-    const createData = (createdResult as any).data;
-    const sessionID = createData?.["200"]?.id ?? "";
+    const sessionsResult = await sdk.session.list();
+    const sessionData = (sessionsResult as any).data;
+    const sessionList: any[] = Array.isArray(sessionData) ? sessionData : (sessionData?.["200"] ?? []);
+    log("Found " + sessionList.length + " sessions");
+
+    let sessionID: string = "";
+    if (sessionList.length > 0) {
+      sessionID = sessionList[0].id;
+      log("Using: " + sessionID);
+    } else {
+      log("Creating new session...");
+      const createdResult = await sdk.session.create({});
+      const createData = (createdResult as any).data;
+      sessionID = createData?.["200"]?.id ?? "";
+      log("Created: " + sessionID);
+    }
+
     if (!sessionID) {
       return getLogs() + "\nFailed to create session";
     }
-    log("Created: " + sessionID);
 
     log("Prompting...");
     const promptResult = await sdk.session.prompt({
