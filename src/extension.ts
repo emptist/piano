@@ -2,10 +2,18 @@ import { Type } from "@sinclair/typebox";
 import type {
   ExtensionAPI,
 } from "@mariozechner/pi-coding-agent";
-import { nupiExtension, setExternalThinker, setDelegateMode } from "@nezha/nupi";
+import { execSync } from "child_process";
+import { nupiExtension, registerThinker } from "@nezha/nupi";
+import type { ExternalThinker } from "@nezha/nupi";
 import { opencodeThink, stopOpenCodeServer } from "./opencode-serve";
+import { validateToolCall, formatToolError, TOOL_SCHEMAS } from "./tool-validator";
 
 const GIT_HASH = "@@GIT_HASH@@";
+
+const pianoThinker: ExternalThinker = {
+  name: "OpenCode",
+  think: opencodeThink,
+};
 
 let piInstance: any = null;
 let pendingMessages: string[] = [];
@@ -14,37 +22,30 @@ function notifyPi(message: string, type: "info" | "warning" | "error" = "info") 
   const log = `[Piano@${GIT_HASH}] ${message}`;
   if (piInstance?.ui?.notify) {
     piInstance.ui.notify(log, type);
-    pendingMessages.forEach(l => piInstance.ui.notify(l, type));
-    pendingMessages = [];
   } else {
-    // console.log only during early startup, not during async operations
     console.log(log);
   }
 }
 
 function execNezha(args: string[]): Promise<string | null> {
-  return new Promise((resolve) => {
-    const { execSync } = require("child_process");
-    try {
-      const result = execSync(`nezha ${args.join(" ")}`, {
-        encoding: "utf-8",
-        timeout: 5000,
-      });
-      resolve(result);
-    } catch {
-      return null;
-    }
-  });
+  try {
+    const result = execSync(`nezha ${args.join(" ")}`, {
+      encoding: "utf-8",
+      timeout: 5000,
+    });
+    return Promise.resolve(result);
+  } catch {
+    return Promise.resolve(null);
+  }
 }
 
 // Fetch startup prompt from database via nezha CLI
 function getStartupPromptFromDB(): string | null {
   try {
-    const { execSync } = require("child_process");
-    const result = execSync(`psql -h 127.0.0.1 -U postgres -d nezha -t -c "SELECT suggested_prompt FROM prompt_suggestions WHERE status = 'approved' ORDER BY updated_at DESC LIMIT 1;"`, {
-      encoding: "utf-8",
-      timeout: 5000,
-    });
+    const result = execSync(
+      `psql -h 127.0.0.1 -U jk -d nezha -t -c "SELECT suggested_prompt FROM prompt_suggestions WHERE status = 'approved' ORDER BY updated_at DESC LIMIT 1;"`,
+      { encoding: "utf-8", timeout: 5000 }
+    );
     const prompt = result.trim();
     return prompt || null;
   } catch {
@@ -52,7 +53,20 @@ function getStartupPromptFromDB(): string | null {
   }
 }
 
-setExternalThinker(opencodeThink);
+registerThinker(pianoThinker);
+
+function validateOpenCodeTools(event: any): string | null {
+  if (!event || event.type !== "tool_call") return null;
+  const toolName = event.toolName;
+  const params = event.input;
+  const result = validateToolCall(toolName, params);
+  if (!result.valid) {
+    const errorMsg = `[Tool Validation] ${toolName}: ${result.errors.join(", ")}`;
+    notifyPi(errorMsg, "warning");
+    return errorMsg;
+  }
+  return null;
+}
 
 const pianoThinkTool = {
   name: "piano_think",
@@ -128,13 +142,26 @@ const nezhaCreateTaskTool = {
 
 export default function pianoExtension(pi: ExtensionAPI) {
   piInstance = pi;
-  setDelegateMode(true);
+registerThinker(pianoThinker);
   notifyPi('[Piano] Thinking router ready (external mode)');
   nupiExtension(pi as any);
   pi.registerTool(pianoThinkTool as any);
   pi.registerTool(nezhaGetTasksTool as any);
   pi.registerTool(nezhaCreateTaskTool as any);
   notifyPi('[Piano] Tools registered: nezha_get_tasks, nezha_create_task, piano_think');
+  
+  // Tool validation: intercept and validate OpenCode tool calls
+  pi.on("tool_call", (event: any) => {
+    const error = validateOpenCodeTools(event);
+    if (error) {
+      return { block: true, reason: error };
+    }
+  });
+  notifyPi('[Piano] Tool validator active');
+  
+  // Log available tool schemas at startup
+  const toolCount = Object.keys(TOOL_SCHEMAS).length;
+  notifyPi(`[Piano] ${toolCount} tool schemas loaded for validation`);
   
   // AI-first startup: trigger OpenCode to review project
   notifyPi('[Piano] Triggering startup AI review...');
@@ -162,6 +189,6 @@ This is AI-first startup - understand, find issues, create tasks, start working.
     
     notifyPi('[Piano] Sending startup review prompt to OpenCode...');
     const result = await opencodeThink(startupPrompt);
-    notifyPi('[Piano] Startup review response: ' + result.slice(0, 300) + '...');
+    notifyPi('[Piano] Startup review response: ' + result.slice(0, 500) + '...');
   }, 5000);
 }

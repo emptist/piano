@@ -1,8 +1,36 @@
 import { createOpencodeClient, type OpencodeClient } from "@opencode-ai/sdk/v2/client";
 import { spawn, type ChildProcess } from "child_process";
 
+const DEFAULT_PORT = 4096;
+const OPENCODE_PORT = parseInt(process.env.OPENCODE_PORT || String(DEFAULT_PORT), 10);
+
+const logBuffer: string[] = [];
+let enableLogging = false;
+
 function log(msg: string) {
-  console.log("[OpenCode Serve] " + msg);
+  const fullMsg = "[OpenCode Serve] " + msg + "\n";
+  logBuffer.push(fullMsg);
+  if (enableLogging) {
+    console.log(fullMsg.trim());
+  }
+}
+
+function clearLogs() {
+  logBuffer.length = 0;
+}
+
+function getLogs(): string {
+  const result = logBuffer.join("\n");
+  clearLogs();
+  return result;
+}
+
+function enableLogs() {
+  enableLogging = true;
+}
+
+function disableLogs() {
+  enableLogging = false;
 }
 
 let client: OpencodeClient | null = null;
@@ -12,51 +40,20 @@ let serverProcess: ChildProcess | null = null;
 export async function startOpenCodeServer(): Promise<number> {
   if (serverPort) return serverPort;
 
-  log("Starting server...");
-  serverProcess = spawn("opencode", ["serve", "--port", "0"], {
-    stdio: ["pipe", "pipe", "pipe"],
+  log("Starting server on port " + OPENCODE_PORT + "...");
+  serverPort = OPENCODE_PORT;
+  
+  serverProcess = spawn("opencode", ["serve", "--port", String(OPENCODE_PORT)], {
+    stdio: ["pipe", "ignore", "ignore"],
   });
 
-  let output = "";
-  serverProcess.stdout?.on("data", (data: Buffer) => {
-    output += data.toString();
-    log("OUT: " + data.toString().slice(0, 100));
-  });
-  serverProcess.stderr?.on("data", (data: Buffer) => {
-    log("ERR: " + data.toString().slice(0, 100));
-  });
-
-  return new Promise((resolve) => {
-    let resolved = false;
-
-    serverProcess!.stdout?.on("data", (data: Buffer) => {
-      if (resolved) return;
-      const str = data.toString();
-      log("Server: " + str.slice(0, 100));
-      const match = str.match(/listening on.*?:(\d+)/);
-      if (match && match[1]) {
-        serverPort = parseInt(match[1], 10);
-        log("Port: " + serverPort);
-        resolved = true;
-        resolve(serverPort);
-      }
-    });
-
-    setTimeout(() => {
-      if (!resolved) {
-        log("Timeout, using default port 4096");
-        serverPort = 4096;
-        resolve(serverPort);
-      }
-    }, 8000);
-  });
+  return Promise.resolve(OPENCODE_PORT);
 }
 
 export async function getOpenCodeClient(): Promise<OpencodeClient> {
   if (client) return client;
 
   const port = await startOpenCodeServer();
-  log("Creating client for port: " + port);
   client = createOpencodeClient({
     baseUrl: `http://127.0.0.1:${port}`,
   });
@@ -65,13 +62,14 @@ export async function getOpenCodeClient(): Promise<OpencodeClient> {
 }
 
 export async function opencodeThink(question: string): Promise<string> {
+  enableLogs();
   log("Thinking: " + question.slice(0, 50));
+  
   const sdk = await getOpenCodeClient();
   log("Got SDK, listing sessions...");
 
   try {
     const sessionsResult = await sdk.session.list();
-    log("Sessions: " + JSON.stringify(sessionsResult).slice(0, 100));
     const sessionData = (sessionsResult as any).data;
     const sessionList: any[] = Array.isArray(sessionData) ? sessionData : (sessionData?.["200"] ?? []);
     log("Found " + sessionList.length + " sessions");
@@ -89,8 +87,7 @@ export async function opencodeThink(question: string): Promise<string> {
     }
 
     if (!sessionID) {
-      log("Failed: no session ID");
-      return "Failed to create session";
+      return getLogs() + "\nFailed to create session";
     }
 
     log("Prompting...");
@@ -101,21 +98,26 @@ export async function opencodeThink(question: string): Promise<string> {
     log("Got response");
 
     const data = (promptResult as any).data;
-    if (!data) return "No data in response";
+    const response = (promptResult as any).response;
+    if (!data && !response) {
+      log("Raw response: " + JSON.stringify(promptResult));
+      return getLogs() + "\nNo data in response";
+    }
     
-    // Try to extract assistant message
-    const info = data?.info;
+    const info = data?.info || response?.info;
     if (info) {
       const summary = info.summary;
       if (summary) {
-        return "Analysis: " + JSON.stringify(summary).slice(0, 300);
+        return getLogs() + "\nAnalysis: " + JSON.stringify(summary).slice(0, 300);
       }
-      return "Agent: " + info.agent + ", Mode: " + info.mode + ", Tokens: " + JSON.stringify(info.tokens);
+      return getLogs() + "\nAgent: " + info.agent + ", Mode: " + info.mode + ", Tokens: " + JSON.stringify(info.tokens);
     }
     
-    return JSON.stringify(data).slice(0, 500);
+    return getLogs() + "\n" + JSON.stringify(data).slice(0, 500);
   } catch (e: any) {
-    return `Error: ${e.message ?? e}`;
+    return getLogs() + "\nError: " + (e.message ?? e);
+  } finally {
+    disableLogs();
   }
 }
 
