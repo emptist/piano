@@ -5,8 +5,8 @@ import type {
 import { execSync } from "child_process";
 import { nupiExtension, registerThinker } from "@nezha/nupi";
 import type { ExternalThinker } from "@nezha/nupi";
-import { opencodeThink, stopOpenCodeServer } from "./opencode-serve";
-import { validateToolCall, formatToolError, TOOL_SCHEMAS } from "./tool-validator";
+import { opencodeThink, stopOpenCodeServer } from "./opencode-serve.js";
+import { validateToolCall, formatToolError, TOOL_SCHEMAS } from "./tool-validator.js";
 
 const GIT_HASH = "@@GIT_HASH@@";
 
