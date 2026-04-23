@@ -49,6 +49,44 @@ npm link              # Creates global symlink
 npm list -g --depth=0 | grep piano
 ```
 
+## Development Workflow (IMPORTANT!)
+
+### Quick: Use the dev-link script
+
+```bash
+cd /Users/jk/gits/hub/tools_ai/piano
+./scripts/dev-link.sh
+```
+
+This builds, links, and verifies the hash automatically.
+
+### Manual (if script fails)
+
+```bash
+# 1. Make code changes
+cd /Users/jk/gits/hub/tools_ai/piano
+# edit files...
+
+# 2. Build
+rm -rf dist && npm run build
+
+# 3. Verify hash
+grep GIT_HASH dist/src/extension.js
+# Should show latest commit hash
+
+# 4. Link to global (CRITICAL!)
+npm link
+
+# 5. Verify global is updated
+grep GIT_HASH $(npm root -g)/@nezha/piano/dist/src/extension.js
+# Must match step 3!
+```
+
+### Why this matters:
+- Piano shows `[Piano@HASH]` in logs
+- If global runs old code, you'll see old hash
+- Always verify after linking!
+
 ## How to Use
 
 ```bash

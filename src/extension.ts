@@ -53,8 +53,6 @@ function getStartupPromptFromDB(): string | null {
   }
 }
 
-registerThinker(pianoThinker);
-
 function validateOpenCodeTools(event: any): string | null {
   if (!event || event.type !== "tool_call") return null;
   const toolName = event.toolName;
@@ -142,7 +140,6 @@ const nezhaCreateTaskTool = {
 
 export default function pianoExtension(pi: ExtensionAPI) {
   piInstance = pi;
-registerThinker(pianoThinker);
   notifyPi('[Piano] Thinking router ready (external mode)');
   nupiExtension(pi as any);
   pi.registerTool(pianoThinkTool as any);
