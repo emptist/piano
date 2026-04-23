@@ -71,7 +71,7 @@ const pianoThinkTool = {
   label: "Piano Think",
   description: "Route complex reasoning to OpenCode for deeper analysis",
   parameters: Type.Object({
-    context: Type.String({ description: "Current situation" }),
+    context: Type.Optional(Type.String({ description: "Current situation" })),
     question: Type.String({ description: "What needs deep thought" }),
   }),
   async execute(_id: any, params: any) {
